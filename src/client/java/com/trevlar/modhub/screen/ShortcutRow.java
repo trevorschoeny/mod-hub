@@ -34,8 +34,8 @@ import java.util.function.Predicate;
  */
 public final class ShortcutRow {
 
-    /** Button size: MenuKit's square, with the icon 2 px in from each edge. */
-    public static final int SIZE = 18;
+    /** Button size: the icon (14 px) with 4 px of the raised button round it on every side (Trev, 2026-10-14). */
+    public static final int SIZE = 22;
 
     /** ponytail: the row's places, fixed at init. Raise it if anyone pins more. */
     private static final int PLACES = 32;

@@ -21,8 +21,8 @@ public final class ModIconButton extends Button {
      */
     public record Face(@Nullable String iconKey, String name) {}
 
-    /** The icon's inset from the button's edge. */
-    private static final int INSET = 2;
+    /** The icon's inset from the button's edge: room for it to breathe inside the raised frame. */
+    private static final int INSET = 4;
 
     private final Supplier<@Nullable Face> face;
 
