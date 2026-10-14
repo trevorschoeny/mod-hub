@@ -28,14 +28,8 @@ public final class KeybinderyBridge {
         return present() && KeybinderyAPI.getInstance().hasKeybinds(modId);
     }
 
-    /**
-     * Opens Keybindery's Key Binds screen showing these mods' keys, over {@code current}.
-     * ponytail: Keybindery filters by one mod today, so a suite opens on its first member that has
-     * keys. Asked Keybindery for a several-mods filter (2026-10-14); pass them all when it lands.
-     */
+    /** Opens Keybindery's Key Binds screen showing every one of these mods' keys together, over {@code current}. */
     public static void open(java.util.List<String> modIds, Screen current) {
-        if (!present() || modIds.isEmpty()) return;
-        String first = modIds.stream().filter(KeybinderyBridge::hasKeybinds).findFirst().orElse(modIds.getFirst());
-        KeybinderyAPI.getInstance().openModKeybinds(first, current);
+        if (present() && !modIds.isEmpty()) KeybinderyAPI.getInstance().openModKeybinds(modIds, current);
     }
 }
