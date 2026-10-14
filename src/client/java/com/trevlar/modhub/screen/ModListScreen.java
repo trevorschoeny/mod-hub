@@ -112,7 +112,8 @@ public final class ModListScreen extends MKScreen {
                 .mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT)
                 .state(() -> selected, id -> selected = id)
                 .bodyScroll(SCROLL::get, SCROLL::put)
-                .sidebarHeader(TextField.builder().size(100, 16).state(() -> search, s -> search = s).build());
+                .sidebarHeader(TextField.builder().size(100, 16).hint(Component.literal("Search"))
+                        .state(() -> search, s -> search = s).build());
         for (HubEntry e : ModCatalog.entries()) {
             Tabs.TabSpec tab = Tabs.tab(e.id()).label(Component.literal(e.name()))
                     .visibleWhen(() -> matches(e))
@@ -170,7 +171,6 @@ public final class ModListScreen extends MKScreen {
                 header(body, s.name(), s.mod(), byline(s.mod()), null);
                 description(body, 0, s.mod());
                 controls(body, s);
-                links(body, s.mod());
             }
             case HubEntry.Suite s -> {
                 header(body, s.name(), s.iconMod(), count(s.mods().size()) + " in this suite", null);
@@ -217,9 +217,14 @@ public final class ModListScreen extends MKScreen {
         body.gap(4);
     }
 
+    /** Whether a mod has anything for its Description section: the text, or a link. */
+    private static boolean hasDescription(ModInfo mod) {
+        return !mod.description().isBlank() || !mod.links().isEmpty();
+    }
+
     /** A mod's description as a Description section, closed to start; nothing when it has none. */
     private static @Nullable Section description(Body body, int x, ModInfo mod) {
-        if (mod.description().isBlank()) return null;
+        if (!hasDescription(mod)) return null;
         Section[] made = new Section[1];
         body.row((y, v) -> {
             made[0] = descriptionSection(x, y, mod, v);
@@ -228,12 +233,22 @@ public final class ModListScreen extends MKScreen {
         return made[0];
     }
 
+    /**
+     * The Description section: the mod's description, then its links (Homepage, Source, Report an
+     * issue) under it. The section re-flows when the text wraps, so the links stay below it.
+     */
     private static Section descriptionSection(int x, int y, ModInfo mod, java.util.function.BooleanSupplier v) {
+        List<PanelElement> content = new ArrayList<>();
+        int linksY = 0;
+        if (!mod.description().isBlank()) {
+            content.add(TextLabel.builder().at(0, 0).text(Component.literal(mod.description())).role(TextRole.BODY).build());
+            linksY = Body.TEXT_ROW + 4;
+        }
+        if (!mod.links().isEmpty()) content.add(links(0, linksY, mod));
         return Section.builder(Component.literal("Description"))
                 .at(x, y)
                 .state(() -> DESCRIPTION_OPEN.getOrDefault(mod.id(), false), open -> DESCRIPTION_OPEN.put(mod.id(), open))
-                .content(List.of(TextLabel.builder().text(Component.literal(mod.description()))
-                        .role(TextRole.BODY).build()))
+                .content(content)
                 .visibleWhen(v)
                 .build();
     }
@@ -282,7 +297,7 @@ public final class ModListScreen extends MKScreen {
      */
     private static void card(Body body, ModInfo m) {
         HubEntry entry = new HubEntry.Single(m);
-        boolean desc = !m.description().isBlank();
+        boolean desc = hasDescription(m);
         boolean controls = m.configurable();
         body.row((y, v) -> {
             List<PanelElement> out = new ArrayList<>();
@@ -295,21 +310,18 @@ public final class ModListScreen extends MKScreen {
         }, ModCard.height(desc, controls) + 4);
     }
 
-    /** The mod's links, each through vanilla's "open this link?" screen. */
-    private static void links(Body body, ModInfo mod) {
-        if (mod.links().isEmpty()) return;
-        body.row((y, v) -> {
-            Flow.Builder row = Flow.builder().at(0, y).gap(4, 4).visibleWhen(v);
-            mod.links().forEach((label, url) -> row.add(Button.builder().size(0, 16).label(Component.literal(label))
-                    .tooltip(Component.literal(url))
-                    .onClick(() -> {
-                        try {
-                            ConfirmLinkScreen.confirmLinkNow(Minecraft.getInstance().gui.screen(), URI.create(url));
-                        } catch (IllegalArgumentException bad) {
-                            // a malformed URL in someone's fabric.mod.json: the button does nothing
-                        }
-                    }).build()));
-            return List.of(row.build());
-        }, Body.CONTROL_ROW);
+    /** The mod's links as a row of buttons, each through vanilla's "open this link?" screen. */
+    private static PanelElement links(int x, int y, ModInfo mod) {
+        Flow.Builder row = Flow.builder().at(x, y).gap(4, 4);
+        mod.links().forEach((label, url) -> row.add(Button.builder().size(0, 16).label(Component.literal(label))
+                .tooltip(Component.literal(url))
+                .onClick(() -> {
+                    try {
+                        ConfirmLinkScreen.confirmLinkNow(Minecraft.getInstance().gui.screen(), URI.create(url));
+                    } catch (IllegalArgumentException bad) {
+                        // a malformed URL in someone's fabric.mod.json: the button does nothing
+                    }
+                }).build()));
+        return row.build();
     }
 }

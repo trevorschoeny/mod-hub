@@ -3,16 +3,15 @@
 // in common code and get a file, a screen and a value a dedicated server can read.
 // Universal (`environment: "*"`): server-side settings are read from the server's own file.
 //
-// The repo folder and Gradle project are still `configkit` until the workspace rename
-// (Lead's); the mod id, jar and packages are `modhub` from the first commit.
-// Build with `./gradlew :configkit:build` from the workspace root.
+// Repo folder and Gradle project `mod-hub` (the slug); mod id, jar and packages `modhub`.
+// Build with `./gradlew :mod-hub:build` from the workspace root.
 
 plugins {
     id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
     id 'java'
 }
 
-version = property('configkit_version')
+version = property('modhub_version')
 group   = 'com.trevlar'
 
 base.archivesName = 'modhub'

@@ -8,7 +8,8 @@
   "authors": ["trevorschoeny"],
   "contact": {
     "homepage": "https://modrinth.com/mod/mod-hub",
-    "sources": "https://github.com/trevorschoeny/mod-hub"
+    "sources": "https://github.com/trevorschoeny/mod-hub",
+    "issues": "https://github.com/trevorschoeny/mod-hub/issues"
   },
   "license": "MIT",
   "environment": "*",

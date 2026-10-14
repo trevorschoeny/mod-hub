@@ -138,12 +138,12 @@ public final class ModCatalog {
         return out;
     }
 
-    /** Homepage, Source and Issues from {@code contact}, then any links Mod Menu's block names. */
+    /** Homepage, Source and Report an issue from {@code contact}, then any links Mod Menu's block names. */
     private static Map<String, String> links(ModMetadata m) {
         Map<String, String> out = new LinkedHashMap<>();
         m.getContact().get("homepage").ifPresent(u -> out.put("Homepage", u));
         m.getContact().get("sources").ifPresent(u -> out.put("Source", u));
-        m.getContact().get("issues").ifPresent(u -> out.put("Issues", u));
+        m.getContact().get("issues").ifPresent(u -> out.put("Report an issue", u));
         CustomValue.CvObject mm = customObject(m, "modmenu");
         if (mm != null && mm.get("links") != null && mm.get("links").getType() == CustomValue.CvType.OBJECT) {
             for (Map.Entry<String, CustomValue> l : mm.get("links").getAsObject()) {
