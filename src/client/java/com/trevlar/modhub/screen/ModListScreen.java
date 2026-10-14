@@ -20,6 +20,7 @@ import com.trevlar.modhub.catalog.HubEntry;
 import com.trevlar.modhub.catalog.HubState;
 import com.trevlar.modhub.catalog.KeybinderyBridge;
 import com.trevlar.modhub.catalog.ModCatalog;
+import com.trevlar.modhub.catalog.ModIcons;
 import com.trevlar.modhub.catalog.ModInfo;
 import com.trevlar.modhub.element.KeyButton;
 import com.trevlar.modhub.element.ModCard;
@@ -113,9 +114,15 @@ public final class ModListScreen extends MKScreen {
                 .bodyScroll(SCROLL::get, SCROLL::put)
                 .sidebarHeader(TextField.builder().size(100, 16).state(() -> search, s -> search = s).build());
         for (HubEntry e : ModCatalog.entries()) {
-            tabs.tab(Tabs.tab(e.id()).label(Component.literal(e.name()))
+            Tabs.TabSpec tab = Tabs.tab(e.id()).label(Component.literal(e.name()))
                     .visibleWhen(() -> matches(e))
-                    .body(() -> page(e)));
+                    .body(() -> page(e));
+            // The mod's own icon at 10 px beside its name (Trev, 2026-10-14); none for Auxiliary,
+            // or for a mod that ships no icon.
+            ModInfo iconMod = e instanceof HubEntry.Auxiliary ? null : e.iconMod();
+            ModIcons.Icon icon = iconMod == null ? null : ModIcons.of(iconMod.id());
+            if (icon != null) tab.icon(icon::texture, icon.size(), 10);
+            tabs.tab(tab);
         }
         boolean options = kind == ScreenKind.OPTIONS;
         if (!options) tabs.at(0, NameBar.HEIGHT + NameBar.GAP);
