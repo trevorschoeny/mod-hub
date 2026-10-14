@@ -4,7 +4,8 @@
   "package": "com.trevlar.modhub.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "PauseScreenMixin"
+    "PauseScreenMixin",
+    "TitleScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
