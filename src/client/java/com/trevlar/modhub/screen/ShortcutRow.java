@@ -24,11 +24,11 @@ import java.util.function.Predicate;
 
 /**
  * The shortcut row: one square button per pinned entry, its face the mod's own icon, docked to the
- * top of the screen and wrapping when it fills the width. The same row on the pause menu and on
+ * top centre of the screen and wrapping when it fills the width. The same row on the pause menu and on
  * every container screen (the inventory, creative, chests, anything with slots); each entry's
  * two checkboxes in the mod list say which.
  *
- * <p>A plain MenuKit panel on the screen's top-left spot. Its buttons are fixed when declared at
+ * <p>A plain MenuKit panel on the screen's top-centre spot. Its buttons are fixed when declared at
  * init, so each one stands for a place in the row ({@link #PLACES} of them) and shows whichever
  * entry is in that place now, hiding when there's none.
  */
@@ -49,7 +49,8 @@ public final class ShortcutRow {
     }
 
     private static Panel row(String id, Predicate<String> shownHere) {
-        Flow.Builder flow = Flow.builder().gap(2, 2);
+        // A spacer at each end centres the shown buttons; hidden places take no room.
+        Flow.Builder flow = Flow.builder().gap(2, 2).add(Flow.spacer());
         for (int i = 0; i < PLACES; i++) {
             int place = i;
             flow.add(ModIconButton.iconBuilder(() -> face(at(shownHere, place)))
@@ -65,9 +66,10 @@ public final class ShortcutRow {
                     })
                     .build());
         }
+        flow.add(Flow.spacer());
         return Panel.builder(id)
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.screenAnchor(InsideRegion.TOP_LEFT))
+                .position(PanelPosition.screenAnchor(InsideRegion.TOP_CENTER))
                 .add(flow.build())
                 .build()
                 .opaque(false);   // only the buttons claim the screen, not the strip they sit in

@@ -8,6 +8,7 @@ import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.Slider;
 import com.trevlar.menukit.api.element.Tabs;
 import com.trevlar.menukit.api.element.TextRole;
+import com.trevlar.menukit.api.panel.InsideRegion;
 import com.trevlar.menukit.api.panel.MKScreen;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.menukit.api.panel.Panel;
@@ -50,7 +51,7 @@ public final class ConfigScreen extends MKScreen {
 
     private ConfigScreen(HubEntry entry, @Nullable Screen parent, ScreenKind kind) {
         super(Component.literal(entry.name()), kind,
-                List.of(main(entry, kind), done(), Confirm.panel("modhub:config_confirm")));
+                List.of(main(entry, kind), done(), back(), modHub(parent), Confirm.panel("modhub:config_confirm")));
         // The inventory look names the screen in its own bar inside the panel, as IP's does.
         if (kind == ScreenKind.CONTAINER) hideTitle();
         setReturnAction(() -> Minecraft.getInstance().gui.setScreen(parent));
@@ -90,6 +91,33 @@ public final class ConfigScreen extends MKScreen {
                 .position(PanelPosition.main());
         if (!options) panel.add(NameBar.of(entry.name()));
         return panel.add(tabs.build()).build();
+    }
+
+    /** Back, top left: where the screen was opened from, as Escape and Done go. */
+    private static Panel back() {
+        return Panel.builder("modhub:config_back")
+                .style(PanelStyle.NONE)
+                .position(PanelPosition.screenAnchor(InsideRegion.TOP_LEFT))
+                .add(Button.builder().label(Component.literal("< Back")).size(50, 20)
+                        .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
+                .build();
+    }
+
+    /**
+     * The Mod Hub button, top right: the pause menu's own (same sprite, same tooltip), opening the
+     * mod list. Opened from the list, it goes back to that list rather than stacking a second one.
+     */
+    private static Panel modHub(@Nullable Screen parent) {
+        return Panel.builder("modhub:config_modhub")
+                .style(PanelStyle.NONE)
+                .position(PanelPosition.screenAnchor(InsideRegion.TOP_RIGHT))
+                .add(Button.builder().icon(ModListScreen.MODS_SPRITE).size(20, 20)
+                        .tooltip(Component.literal("Mod Hub"))
+                        .onClick(() -> {
+                            if (parent instanceof ModListScreen) Minecraft.getInstance().gui.setScreen(parent);
+                            else ModListScreen.open(parent);
+                        }).build())
+                .build();
     }
 
     /** Done at the bottom centre, as every Options screen ends. Done and Escape agree. */

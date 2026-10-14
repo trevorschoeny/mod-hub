@@ -57,6 +57,10 @@ import java.util.Objects;
  */
 public final class ModListScreen extends MKScreen {
 
+    /** The Mods button's sprite: the pause menu's button and the config screen's are the same. */
+    public static final net.minecraft.resources.Identifier MODS_SPRITE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("modhub", "pause_menu/mods");
+
     /** The open tab, the search text, and each tab's scroll, for the session. */
     private static String selected = "mod:modhub";
     private static String search = "";
