@@ -274,8 +274,9 @@ public final class ModListScreen extends MKScreen {
         row.add(Button.builder().icon(CONFIGS_ICON).size(16, 16)
                 .tooltip(Component.literal(e.name() + " configs"))
                 .onClick(() -> ConfigScreen.open(e, Minecraft.getInstance().gui.screen())).build());
-        ModInfo keysMod = e.iconMod();
-        if (KeybinderyBridge.present() && keysMod != null) {
+        // The first of the entry's mods that has keys (a suite's may not be its first mod).
+        ModInfo keysMod = e.mods().stream().filter(m -> KeybinderyBridge.hasKeybinds(m.id())).findFirst().orElse(null);
+        if (keysMod != null) {
             row.add(Button.builder().icon(KeybinderyBridge.KEYS_SPRITE).size(16, 16)
                     .tooltip(Component.literal(e.name() + " keybinds, in Keybindery"))
                     .onClick(() -> KeybinderyBridge.open(keysMod.id(), Minecraft.getInstance().gui.screen())).build());

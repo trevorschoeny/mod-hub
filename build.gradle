@@ -118,9 +118,9 @@ dependencies {
     clientCompileOnly "com.terraformersmc:modmenu:21.0.0"
 
     // Keybindery: optional. The keys button opens its Key Binds screen filtered to a mod, through
-    // KeybinderyBridge behind isModLoaded. Compile-only (players needn't have it) until that call
-    // is in keybindery-api; in the dev runtime so the button can be tried.
-    clientCompileOnly rootProject.project(':keybindery').sourceSets.client.output
+    // keybindery-api (1.2.2: openModKeybinds, hasKeybinds), behind isModLoaded. Compile-only, so
+    // players needn't have it; Keybindery in the dev runtime so the button can be tried.
+    clientCompileOnly project(':keybindery-api')
     devRunRuntimeOnly project(':keybindery')
     devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output
 }
