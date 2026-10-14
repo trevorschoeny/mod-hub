@@ -34,8 +34,8 @@ public final class ModCard extends AbstractPanelElement {
     /** Where the Description section sits, from the card's top. */
     public static final int SECTION_Y = PAD + ICON + 4;
 
-    /** The controls: the icon-button row (19 px), a gap, then the Shortcuts row. */
-    public static final int CONTROLS_HEIGHT = 19 + 4 + 12;
+    /** The controls: one row as tall as its icon buttons. */
+    public static final int CONTROLS_HEIGHT = 19;
 
     private final String modId;
     private final String name;

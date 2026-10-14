@@ -31,7 +31,7 @@ import java.util.TreeMap;
  *   <li>A mod with settings (on Mod Hub, or a screen Mod Menu can open) is an entry of its own,
  *       unless it names a suite.</li>
  *   <li>Mods naming the same {@code custom.modhub.suite} share one entry, whether or not each has
- *       settings.</li>
+ *       settings, once two or more of them are installed.</li>
  *   <li>A mod with no settings and no suite goes into Auxiliary: libraries, Fabric API's modules
  *       and player mods that simply have nothing to set alike.</li>
  * * </ol>
@@ -111,8 +111,19 @@ public final class ModCatalog {
             else if (mi.configurable()) top.add(new HubEntry.Single(mi));
             else aux.add(mi);
         }
-        suites.forEach((id, members) -> top.add(new HubEntry.Suite(id,
-                suiteNames.getOrDefault(id, humanize(id)), List.copyOf(members))));
+        // A suite with only one of its mods installed isn't shown as a suite: that mod stands on
+        // its own, in the list or in Auxiliary as any mod would (Trev, 2026-10-14).
+        suites.forEach((id, members) -> {
+            if (members.size() > 1) {
+                top.add(new HubEntry.Suite(id, suiteNames.getOrDefault(id, humanize(id)), List.copyOf(members)));
+            } else if (members.getFirst().configurable()) {
+                top.add(new HubEntry.Single(members.getFirst()));
+            } else {
+                aux.add(members.getFirst());
+            }
+        });
+
+        aux.sort(Comparator.comparing(mi -> mi.name().toLowerCase(java.util.Locale.ROOT)));
 
         Map<String, HubEntry> byId = new LinkedHashMap<>();
         for (HubEntry e : top) byId.put(e.id(), e);

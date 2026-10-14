@@ -9,6 +9,8 @@ import com.trevlar.menukit.api.element.Tabs;
 import com.trevlar.menukit.api.element.TextField;
 import com.trevlar.menukit.api.element.TextLabel;
 import com.trevlar.menukit.api.element.TextRole;
+import com.trevlar.menukit.api.layout.CrossAlign;
+import com.trevlar.menukit.api.layout.Row;
 import com.trevlar.menukit.api.panel.MKScreen;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.menukit.api.panel.Panel;
@@ -110,7 +112,7 @@ public final class ModListScreen extends MKScreen {
     private static Panel main(ScreenKind kind) {
         Tabs.Builder tabs = Tabs.builder()
                 .mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT)
-                .state(() -> selected, id -> selected = id)
+                .state(() -> selected, ModListScreen::select)
                 .bodyScroll(SCROLL::get, SCROLL::put)
                 .sidebarHeader(TextField.builder().size(100, 16).hint(Component.literal("Search"))
                         .state(() -> search, s -> search = s).build());
@@ -143,13 +145,38 @@ public final class ModListScreen extends MKScreen {
                 .build();
     }
 
-    /** Search: the entry's name, or any of its mods' names or ids. */
+    /** Each suite card's y on its page, by suite entry id then mod id, filled as pages are built. */
+    private static final Map<String, Map<String, Integer>> CARD_Y = new HashMap<>();
+
+    /**
+     * Picks a tab. With a search typed, a suite opens scrolled to its first mod whose name
+     * matches, since that's what the player searched for.
+     * ponytail: the y is the card's with every Description closed; an open one above it lands the
+     * scroll a little short.
+     */
+    private static void select(String id) {
+        selected = id;
+        String q = search.strip().toLowerCase(Locale.ROOT);
+        Map<String, Integer> cards = CARD_Y.get(id);
+        if (q.isEmpty() || cards == null) return;
+        HubEntry e = ModCatalog.find(id);
+        if (e == null || e.name().toLowerCase(Locale.ROOT).contains(q)) return;   // the suite itself matched
+        for (ModInfo m : e.mods()) {
+            Integer y = cards.get(m.id());
+            if (y != null && m.name().toLowerCase(Locale.ROOT).contains(q)) {
+                SCROLL.put(id, (double) Math.max(0, y - 4));
+                return;
+            }
+        }
+    }
+
+    /** Search: the entry's name, or any of its mods' names. Names only, never descriptions. */
     private static boolean matches(HubEntry e) {
         String q = search.strip().toLowerCase(Locale.ROOT);
         if (q.isEmpty()) return true;
         if (e.name().toLowerCase(Locale.ROOT).contains(q)) return true;
         for (ModInfo m : e.mods()) {
-            if (m.name().toLowerCase(Locale.ROOT).contains(q) || m.id().contains(q)) return true;
+            if (m.name().toLowerCase(Locale.ROOT).contains(q)) return true;
         }
         return false;
     }
@@ -179,12 +206,12 @@ public final class ModListScreen extends MKScreen {
             case HubEntry.Suite s -> {
                 header(body, s.name(), s.iconMod(), count(s.mods().size()) + " in this suite", null);
                 controls(body, s);
-                for (ModInfo m : s.mods()) card(body, m);
+                for (ModInfo m : s.mods()) card(body, s.id(), m);
             }
             case HubEntry.Auxiliary a -> {
                 header(body, a.name(), null, count(a.mods().size()), "Mods with no settings of their own: libraries, "
                         + "Fabric API's modules, and mods with nothing to set.");
-                for (ModInfo m : a.mods()) card(body, m);
+                for (ModInfo m : a.mods()) card(body, a.id(), m);
             }
         }
         return body.build();
@@ -266,31 +293,31 @@ public final class ModListScreen extends MKScreen {
     private static final int ICON_BUTTON = 19;
 
     /**
-     * The controls, the same for every entry, in two rows. First: the configs button (a gear),
-     * Keybindery's keys button when Keybindery is installed, and the key. Second: "Shortcuts:"
-     * and its two checkboxes.
+     * The controls, the same for every entry, in one row centred on its height: the configs button
+     * (a gear), Keybindery's keys button when Keybindery is installed, the key, then the shortcut's
+     * two checkboxes. A {@code Row}, not a {@code Flow}, because only {@code Row} centres
+     * children of different heights; it doesn't wrap, which the row's fixed widths never need.
      */
     private static List<PanelElement> controlsRows(int x, int y, HubEntry e, java.util.function.BooleanSupplier v) {
-        Flow.Builder top = Flow.builder().at(x, y).gap(6, 4).visibleWhen(v);
-        top.add(Button.builder().icon(CONFIGS_ICON).size(ICON_BUTTON, ICON_BUTTON)
+        String what = e instanceof HubEntry.Suite ? "the " + e.name() + " suite" : e.name();
+        var row = Row.at(x, y).spacing(6).crossAlign(CrossAlign.CENTER);
+        row.add(Button.builder().icon(CONFIGS_ICON).size(ICON_BUTTON, ICON_BUTTON).visibleWhen(v)
                 .tooltip(Component.literal(e.name() + " configs"))
                 .onClick(() -> ConfigScreen.open(e, Minecraft.getInstance().gui.screen())).build());
         if (KeybinderyBridge.present()) {
             List<String> ids = e.mods().stream().map(ModInfo::id).toList();
-            top.add(Button.builder().icon(KeybinderyBridge.KEYS_SPRITE).size(ICON_BUTTON, ICON_BUTTON)
+            row.add(Button.builder().icon(KeybinderyBridge.KEYS_SPRITE).size(ICON_BUTTON, ICON_BUTTON).visibleWhen(v)
                     .tooltip(Component.literal(e.name() + " keybinds, in Keybindery"))
                     .onClick(() -> KeybinderyBridge.open(ids, Minecraft.getInstance().gui.screen())).build());
         }
-        top.add(KeyButton.of(0, 0, e.id()));
-        Flow.Builder shortcuts = Flow.builder().at(x, y + ICON_BUTTON + 4).gap(10, 4).visibleWhen(v);
-        shortcuts.add(TextLabel.builder().text(Component.literal("Shortcuts:")).build());
-        shortcuts.add(Checkbox.builder().label(Component.literal("Pause menu"))
-                .tooltip(Component.literal("A shortcut to " + e.name() + " at the top of the pause menu"))
+        row.add(KeyButton.of(0, 0, e.id(), v));
+        row.add(Checkbox.builder().label(Component.literal("Pause")).visibleWhen(v)
+                .tooltip(Component.literal("Adds a button to open the config for " + what + " at the top of the pause menu"))
                 .state(() -> HubState.pause(e.id()), on -> HubState.setPause(e.id(), on)).build());
-        shortcuts.add(Checkbox.builder().label(Component.literal("Inventory"))
-                .tooltip(Component.literal("A shortcut to " + e.name() + " at the top of inventories and containers"))
+        row.add(Checkbox.builder().label(Component.literal("Inventory")).visibleWhen(v)
+                .tooltip(Component.literal("Adds a button to open the config for " + what + " at the top of the inventory"))
                 .state(() -> HubState.inventory(e.id()), on -> HubState.setInventory(e.id(), on)).build());
-        return List.of(top.build(), shortcuts.build());
+        return row.build();
     }
 
     /** A description's first line (to its first line break or sentence end), with "..." after it. */
@@ -308,7 +335,8 @@ public final class ModListScreen extends MKScreen {
      * row when it has settings, all inside the card's frame and across its whole width. The card
      * grows with the section; the panel's reflow moves the cards after it.
      */
-    private static void card(Body body, ModInfo m) {
+    private static void card(Body body, String pageId, ModInfo m) {
+        CARD_Y.computeIfAbsent(pageId, k -> new HashMap<>()).put(m.id(), body.y());
         HubEntry entry = new HubEntry.Single(m);
         boolean desc = hasDescription(m);
         boolean controls = m.configurable();
