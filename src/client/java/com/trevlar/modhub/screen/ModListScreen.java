@@ -168,8 +168,12 @@ public final class ModListScreen extends MKScreen {
         Body body = new Body();
         switch (e) {
             case HubEntry.Single s -> {
-                header(body, s.name(), s.mod(), byline(s.mod()), null);
-                description(body, 0, s.mod());
+                // One mod on its own: the description in full, its links under it, no dropdown.
+                header(body, s.name(), s.mod(), byline(s.mod()), s.mod().description());
+                if (!s.mod().links().isEmpty()) {
+                    body.row((y, v) -> links(0, y, s.mod(), v), Body.CONTROL_ROW);
+                    body.gap(2);
+                }
                 controls(body, s);
             }
             case HubEntry.Suite s -> {
@@ -222,20 +226,10 @@ public final class ModListScreen extends MKScreen {
         return !mod.description().isBlank() || !mod.links().isEmpty();
     }
 
-    /** A mod's description as a Description section, closed to start; nothing when it has none. */
-    private static @Nullable Section description(Body body, int x, ModInfo mod) {
-        if (!hasDescription(mod)) return null;
-        Section[] made = new Section[1];
-        body.row((y, v) -> {
-            made[0] = descriptionSection(x, y, mod, v);
-            return List.of(made[0]);
-        }, Section.HEADER_HEIGHT + 4);
-        return made[0];
-    }
-
     /**
-     * The Description section: the mod's description, then its links (Homepage, Source, Report an
-     * issue) under it. The section re-flows when the text wraps, so the links stay below it.
+     * A mod's description as a section in its card: closed, its header is the description's first
+     * line ending in "..."; open, the whole description, then its links (Homepage, Source, Report
+     * an issue). The section re-flows when the text wraps, so the links stay below it.
      */
     private static Section descriptionSection(int x, int y, ModInfo mod, java.util.function.BooleanSupplier v) {
         List<PanelElement> content = new ArrayList<>();
@@ -244,8 +238,12 @@ public final class ModListScreen extends MKScreen {
             content.add(TextLabel.builder().at(0, 0).text(Component.literal(mod.description())).role(TextRole.BODY).build());
             linksY = Body.TEXT_ROW + 4;
         }
-        if (!mod.links().isEmpty()) content.add(links(0, linksY, mod));
-        return Section.builder(Component.literal("Description"))
+        if (!mod.links().isEmpty()) content.addAll(links(0, linksY, mod, () -> true));
+        String first = firstLine(mod);
+        // The header is the arrow and a summary (MenuKit cuts a summary to fit, with "...");
+        // the summary goes blank while open, as the text is right under it.
+        return Section.builder(Component.empty())
+                .summary(() -> Component.literal(DESCRIPTION_OPEN.getOrDefault(mod.id(), false) ? "" : first))
                 .at(x, y)
                 .state(() -> DESCRIPTION_OPEN.getOrDefault(mod.id(), false), open -> DESCRIPTION_OPEN.put(mod.id(), open))
                 .content(content)
@@ -253,42 +251,56 @@ public final class ModListScreen extends MKScreen {
                 .build();
     }
 
-    /** The controls row under a page's header. */
+    /** The controls under a page's header. */
     private static void controls(Body body, HubEntry e) {
         if (!e.configurable()) {
             body.text(Component.literal("No settings."), TextRole.MUTED);
             body.gap(Body.GAP);
             return;
         }
-        body.row((y, v) -> List.of(controlsRow(0, y, e, v)), Body.CONTROL_ROW + 2);
+        body.row((y, v) -> controlsRows(0, y, e, v), ModCard.CONTROLS_HEIGHT + 2);
         body.gap(Body.GAP);
     }
 
+    /** Icon buttons are 19 px: a 15 px sprite (the pause menu's size) drawn 1:1 inside MenuKit's 2 px inset. */
+    private static final int ICON_BUTTON = 19;
+
     /**
-     * The controls row, the same for every entry: the configs button (a gear), Keybindery's keys
-     * button when Keybindery is installed, the key, then the shortcut's two checkboxes. Wraps when
-     * the page is narrow.
+     * The controls, the same for every entry, in two rows. First: the configs button (a gear),
+     * Keybindery's keys button when Keybindery is installed, and the key. Second: "Shortcuts:"
+     * and its two checkboxes.
      */
-    private static PanelElement controlsRow(int x, int y, HubEntry e, java.util.function.BooleanSupplier v) {
-        Flow.Builder row = Flow.builder().at(x, y).gap(6, 4).visibleWhen(v);
-        row.add(Button.builder().icon(CONFIGS_ICON).size(16, 16)
+    private static List<PanelElement> controlsRows(int x, int y, HubEntry e, java.util.function.BooleanSupplier v) {
+        Flow.Builder top = Flow.builder().at(x, y).gap(6, 4).visibleWhen(v);
+        top.add(Button.builder().icon(CONFIGS_ICON).size(ICON_BUTTON, ICON_BUTTON)
                 .tooltip(Component.literal(e.name() + " configs"))
                 .onClick(() -> ConfigScreen.open(e, Minecraft.getInstance().gui.screen())).build());
-        // The first of the entry's mods that has keys (a suite's may not be its first mod).
-        ModInfo keysMod = e.mods().stream().filter(m -> KeybinderyBridge.hasKeybinds(m.id())).findFirst().orElse(null);
-        if (keysMod != null) {
-            row.add(Button.builder().icon(KeybinderyBridge.KEYS_SPRITE).size(16, 16)
+        if (KeybinderyBridge.present()) {
+            List<String> ids = e.mods().stream().map(ModInfo::id).toList();
+            top.add(Button.builder().icon(KeybinderyBridge.KEYS_SPRITE).size(ICON_BUTTON, ICON_BUTTON)
                     .tooltip(Component.literal(e.name() + " keybinds, in Keybindery"))
-                    .onClick(() -> KeybinderyBridge.open(keysMod.id(), Minecraft.getInstance().gui.screen())).build());
+                    .onClick(() -> KeybinderyBridge.open(ids, Minecraft.getInstance().gui.screen())).build());
         }
-        row.add(KeyButton.of(0, 0, e.id()));
-        row.add(Checkbox.builder().label(Component.literal("Pause menu"))
+        top.add(KeyButton.of(0, 0, e.id()));
+        Flow.Builder shortcuts = Flow.builder().at(x, y + ICON_BUTTON + 4).gap(10, 4).visibleWhen(v);
+        shortcuts.add(TextLabel.builder().text(Component.literal("Shortcuts:")).build());
+        shortcuts.add(Checkbox.builder().label(Component.literal("Pause menu"))
                 .tooltip(Component.literal("A shortcut to " + e.name() + " at the top of the pause menu"))
                 .state(() -> HubState.pause(e.id()), on -> HubState.setPause(e.id(), on)).build());
-        row.add(Checkbox.builder().label(Component.literal("Inventory"))
+        shortcuts.add(Checkbox.builder().label(Component.literal("Inventory"))
                 .tooltip(Component.literal("A shortcut to " + e.name() + " at the top of inventories and containers"))
                 .state(() -> HubState.inventory(e.id()), on -> HubState.setInventory(e.id(), on)).build());
-        return row.build();
+        return List.of(top.build(), shortcuts.build());
+    }
+
+    /** A description's first line (to its first line break or sentence end), with "..." after it. */
+    private static String firstLine(ModInfo mod) {
+        String d = mod.description().strip();
+        int cut = d.indexOf('\n');
+        int stop = d.indexOf(". ");
+        if (stop >= 0 && (cut < 0 || stop < cut)) cut = stop + 1;
+        String line = cut < 0 ? d : d.substring(0, cut).strip();
+        return line.isEmpty() ? "Links" : line + "...";
     }
 
     /**
@@ -306,23 +318,34 @@ public final class ModListScreen extends MKScreen {
             out.add(new ModCard(y, m.id(), m.name(), m.version(), desc, controls,
                     () -> section == null ? 0 : section.extraLayoutHeight(), v));
             if (section != null) out.add(section);
-            if (controls) out.add(controlsRow(ModCard.PAD, y + ModCard.controlsY(desc), entry, v));
+            if (controls) out.addAll(controlsRows(ModCard.PAD, y + ModCard.controlsY(desc), entry, v));
             return out;
         }, ModCard.height(desc, controls) + 4);
     }
 
-    /** The mod's links as a row of buttons, each through vanilla's "open this link?" screen. */
-    private static PanelElement links(int x, int y, ModInfo mod) {
-        Flow.Builder row = Flow.builder().at(x, y).gap(4, 4);
-        mod.links().forEach((label, url) -> row.add(Button.builder().size(0, 16).label(Component.literal(label))
-                .tooltip(Component.literal(url))
-                .onClick(() -> {
-                    try {
-                        ConfirmLinkScreen.confirmLinkNow(Minecraft.getInstance().gui.screen(), URI.create(url));
-                    } catch (IllegalArgumentException bad) {
-                        // a malformed URL in someone's fabric.mod.json: the button does nothing
-                    }
-                }).build()));
-        return row.build();
+    /**
+     * The mod's links as buttons in a row, each through vanilla's "open this link?" screen. Placed
+     * one after another at their label's width, rather than in a {@code Flow}, so they lay out the
+     * same inside a section's content as on a page.
+     */
+    private static List<PanelElement> links(int x, int y, ModInfo mod, java.util.function.BooleanSupplier v) {
+        var font = Minecraft.getInstance().font;
+        List<PanelElement> out = new ArrayList<>();
+        int bx = x;
+        for (var link : mod.links().entrySet()) {
+            String label = link.getKey(), url = link.getValue();
+            int w = font.width(label) + 12;
+            out.add(Button.builder().at(bx, y).size(w, 16).label(Component.literal(label))
+                    .tooltip(Component.literal(url)).visibleWhen(v)
+                    .onClick(() -> {
+                        try {
+                            ConfirmLinkScreen.confirmLinkNow(Minecraft.getInstance().gui.screen(), URI.create(url));
+                        } catch (IllegalArgumentException bad) {
+                            // a malformed URL in someone's fabric.mod.json: the button does nothing
+                        }
+                    }).build());
+            bx += w + 4;
+        }
+        return out;
     }
 }

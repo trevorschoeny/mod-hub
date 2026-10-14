@@ -50,14 +50,15 @@ public final class ConfigScreen extends MKScreen {
     private static final Map<String, String> SELECTED = new HashMap<>();
     private static final Map<String, Double> SCROLL = new HashMap<>();
 
-    /** How far the menu starts below the top corners' buttons (Trev, 2026-10-14: 6 or 7 px). */
-    private static final int TOP_ROOM = 7;
+    /** How far the menu starts below the name bar, clear of the top corners' buttons (Trev, 2026-10-14). */
+    private static final int TOP_ROOM = 9;
 
     private ConfigScreen(HubEntry entry, @Nullable Screen parent, ScreenKind kind) {
         super(Component.literal(entry.name()), kind,
                 List.of(main(entry, kind), done(), back(), modHub(parent), Confirm.panel("modhub:config_confirm")));
-        // The inventory look names the screen in its own bar inside the panel, as IP's does.
-        if (kind == ScreenKind.CONTAINER) hideTitle();
+        // Both looks name the screen in a bar at twice size across the top (Trev, 2026-10-14), so
+        // the vanilla title band goes.
+        hideTitle();
         setReturnAction(() -> Minecraft.getInstance().gui.setScreen(parent));
     }
 
@@ -90,21 +91,32 @@ public final class ConfigScreen extends MKScreen {
 
     private static Panel main(HubEntry entry, ScreenKind kind) {
         boolean options = kind == ScreenKind.OPTIONS;
+        List<ModInfo> configurable = entry.mods().stream().filter(ModInfo::configurable).toList();
+        int top = NameBar.HEIGHT + TOP_ROOM;
+        // One mod on its own has nothing to switch between: its page, without the tabs. The panel
+        // scrolls when the page is taller than the screen.
+        if (configurable.size() == 1) {
+            return Panel.builder("modhub:config")
+                    .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
+                    .position(PanelPosition.main())
+                    .elements(page(configurable.getFirst(), top))   // replaces the list, so first
+                    .add(NameBar.of(entry.name(), 0))
+                    .build();
+        }
         Tabs.Builder tabs = Tabs.builder()
                 .mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT)
                 .state(() -> SELECTED.get(entry.id()), id -> SELECTED.put(entry.id(), id))
                 .bodyScroll(id -> SCROLL.get(entry.id() + "/" + id), (id, v) -> SCROLL.put(entry.id() + "/" + id, v));
         for (ModInfo mod : entry.mods()) {
             if (!mod.configurable()) continue;
-            tabs.tab(Tabs.tab(mod.id()).label(Component.literal(mod.name())).body(() -> page(mod)));
+            tabs.tab(Tabs.tab(mod.id()).label(Component.literal(mod.name())).body(() -> page(mod, 0)));
         }
-        // Back and Mod Hub sit in the top corners; everything here starts TOP_ROOM lower so they
-        // never overlap the sidebar or the name bar.
-        tabs.at(0, TOP_ROOM + (options ? 0 : NameBar.HEIGHT + NameBar.GAP));
+        // The name bar across the top, between Back and Mod Hub; the tabs start under it.
+        tabs.at(0, top);
         Panel.Builder panel = Panel.builder("modhub:config")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
-                .position(PanelPosition.main());
-        if (!options) panel.add(NameBar.of(entry.name(), TOP_ROOM));
+                .position(PanelPosition.main())
+                .add(NameBar.of(entry.name(), 0));
         return panel.add(tabs.build()).build();
     }
 
@@ -152,8 +164,9 @@ public final class ConfigScreen extends MKScreen {
     // the settings one per line. A checkbox sits inline with its name; a slider or dropdown sits
     // under its name. A setting's description is its name's tooltip, as IP's keys' are.
 
-    private static List<PanelElement> page(ModInfo mod) {
-        Body body = new Body();
+    /** One mod's page, its rows starting at {@code top}. */
+    private static List<PanelElement> page(ModInfo mod, int top) {
+        Body body = new Body().at(top);
         body.heading(mod.name());
         body.text(Component.literal(mod.description().isBlank() ? " " : mod.description()), TextRole.BODY);
         body.gap(4);

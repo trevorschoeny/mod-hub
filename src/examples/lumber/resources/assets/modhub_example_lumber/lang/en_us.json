@@ -7,5 +7,7 @@
   "modhub.modhub_example_lumber.leafDecay.off": "Off",
   "modhub.modhub_example_lumber.leafDecay.normal": "Normal",
   "modhub.modhub_example_lumber.leafDecay.fast": "Fast",
-  "modhub.modhub_example_lumber.replantSaplings": "Replant saplings"
+  "modhub.modhub_example_lumber.replantSaplings": "Replant saplings",
+  "key.modhub_example_lumber.fell": "Fell tree",
+  "key.category.modhub_example_lumber.controls": "Example Lumber"
 }

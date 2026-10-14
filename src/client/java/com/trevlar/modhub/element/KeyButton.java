@@ -36,7 +36,7 @@ public final class KeyButton extends Button {
 
     public static Button of(int x, int y, String entry) {
         Builder b = new Builder(entry);
-        b.at(x, y).size(90, 16)
+        b.at(x, y).size(90, 19)
                 .onClick(() -> waiting = entry)
                 .onSecondaryClick(click -> { HubState.setKey(entry, null); waiting = null; })
                 .tooltip(Component.literal("Click, then press a key.\nBackspace or right-click clears it."));
