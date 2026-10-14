@@ -21,8 +21,13 @@ public final class ModIconButton extends Button {
      */
     public record Face(@Nullable String iconKey, String name) {}
 
-    /** The icon's inset from the button's edge: room for it to breathe inside the raised frame. */
+    /** The icon's inset from the button's top and left edges: room for it to breathe inside the raised frame. */
     private static final int INSET = 4;
+    /**
+     * One more pixel on the right and bottom, where the raised frame's shadow sits, so the icon
+     * looks centred on the lit face rather than on the whole button.
+     */
+    private static final int SHADOW = 1;
 
     private final Supplier<@Nullable Face> face;
 
@@ -42,7 +47,7 @@ public final class ModIconButton extends Button {
     protected void renderContent(RenderContext ctx, int sx, int sy, Look look) {
         Face f = face.get();
         if (f == null) return;
-        int size = getWidth() - INSET * 2;
+        int size = getWidth() - INSET * 2 - SHADOW;
         ModIcons.Icon icon = ModIcons.of(f.iconKey());
         if (icon != null) {
             ModIconImage.draw(ctx, icon, sx + INSET, sy + INSET, size);
@@ -50,7 +55,7 @@ public final class ModIconButton extends Button {
         }
         var font = net.minecraft.client.Minecraft.getInstance().font;
         String letters = ModIcons.initials(f.name());
-        ctx.graphics().text(font, letters, sx + (getWidth() - font.width(letters)) / 2, sy + (getHeight() - 8) / 2,
+        ctx.graphics().text(font, letters, sx + (getWidth() - SHADOW - font.width(letters)) / 2, sy + (getHeight() - SHADOW - 8) / 2,
                 ctx.kind().textColor(com.trevlar.menukit.api.element.TextRole.HEADING), ctx.kind().textShadow());
     }
 
