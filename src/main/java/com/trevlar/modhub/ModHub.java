@@ -19,7 +19,6 @@ public final class ModHub implements ModInitializer {
 
     public static final String MOD_ID = "modhub";
 
-    /** Every mod's settings, by mod id. A mod's first call creates its entry. */
     private static final Map<String, Settings> SETTINGS = new ConcurrentHashMap<>();
 
     /**

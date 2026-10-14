@@ -19,8 +19,8 @@ import java.util.List;
  * a title, one line of what it does, Cancel and Confirm; Escape cancels.
  *
  * <p>Hand-built, as Inventory Plus's is, because MenuKit's {@code ConfirmDialog} fixes its text
- * when built and these name what they act on when pressed. Mod Hub's ask for a live-text
- * {@code ConfirmDialog} (MenuKit {@code owed.md}) would replace this.
+ * when built and these name what they act on when pressed. A live-text
+ * {@code ConfirmDialog} in MenuKit would replace this.
  */
 final class Confirm {
 

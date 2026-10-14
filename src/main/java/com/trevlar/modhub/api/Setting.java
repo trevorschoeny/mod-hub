@@ -161,7 +161,7 @@ public abstract sealed class Setting<T> permits Setting.Bool, Setting.Int, Setti
     }
 
     /**
-     * One of an enum's values. Written to the file as the constant's name, read back
+     * One of an enum's values. Written to the file as the constant's name in lower case, read back
      * case-insensitively, so {@code "AUTO"} and {@code "auto"} both load. Drawn as a dropdown.
      */
     public static final class Choice<E extends Enum<E>> extends Setting<E> {

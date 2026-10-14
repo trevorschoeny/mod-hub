@@ -21,7 +21,7 @@ import java.util.Set;
  */
 public final class ModHubClient implements ClientModInitializer {
 
-    /** Keys held down last tick, so a key opens its entry once per press, not every tick. */
+    // Keys held down last tick, so a key opens its entry once per press, not every tick.
     private static final Set<Integer> HELD = new HashSet<>();
 
     @Override
@@ -30,12 +30,9 @@ public final class ModHubClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(ModHubClient::keys);
     }
 
-    /**
-     * An entry's key opens its settings, in game with no screen open: never while typing in chat
-     * or in another menu, since those are screens.
-     * ponytail: in game only. Add container screens (through ScreenKeyboardEvents) if Trev wants
-     * a key to work over the inventory too.
-     */
+    // An entry's key opens its settings in game with no screen open, so never while typing in chat
+    // or in another menu, since those are screens. Container screens would need
+    // ScreenKeyboardEvents, if a key should also work over the inventory.
     private static void keys(Minecraft mc) {
         boolean inGame = mc.gui.screen() == null && mc.player != null;
         for (Map.Entry<String, Integer> k : HubState.keys().entrySet()) {

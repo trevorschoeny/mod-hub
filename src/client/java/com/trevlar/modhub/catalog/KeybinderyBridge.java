@@ -10,7 +10,7 @@ import net.minecraft.resources.Identifier;
  * Mod Hub's one door to Keybindery, through {@code keybindery-api}: its Key Binds screen, opened
  * filtered to one mod, and whether a mod has any keys at all. Behind
  * {@code isModLoaded("keybindery")}, so without Keybindery the API's classes are never touched
- * and the keys button simply isn't there.
+ * and the keys button isn't there.
  */
 public final class KeybinderyBridge {
 

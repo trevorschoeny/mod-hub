@@ -14,7 +14,7 @@ import java.util.Map;
  * @param modMenuScreen whether Mod Menu can open a screen of its own for it (only ever true when
  *                     Mod Menu is installed: the screen comes through Mod Menu's own code)
  * @param suiteId      its {@code custom.modhub.suite}, or null
- * @param links        label to URL, in the order shown (Homepage, Source, Issues, then Mod Menu's)
+ * @param links        label to URL, in the order shown (Homepage, Source, Report an issue, then Mod Menu's)
  */
 public record ModInfo(String id, String name, String version, String description, List<String> authors,
                       Map<String, String> links, @Nullable Settings settings, boolean modMenuScreen,

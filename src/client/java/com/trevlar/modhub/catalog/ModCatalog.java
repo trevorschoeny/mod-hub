@@ -26,15 +26,15 @@ import java.util.TreeMap;
 /**
  * Every installed mod, sorted into the mod list's sidebar entries.
  *
- * <p><b>The rules</b> (design, "Decided"):
+ * <p><b>The rules</b>:
  * <ol>
  *   <li>A mod with settings (on Mod Hub, or a screen Mod Menu can open) is an entry of its own,
  *       unless it names a suite.</li>
  *   <li>Mods naming the same {@code custom.modhub.suite} share one entry, whether or not each has
  *       settings, once two or more of them are installed.</li>
  *   <li>A mod with no settings and no suite goes into Auxiliary: libraries, Fabric API's modules
- *       and player mods that simply have nothing to set alike.</li>
- * * </ol>
+ *       and player mods with nothing to set.</li>
+ * </ol>
  * Order: Mod Hub first, then the rest by name, then Auxiliary.
  *
  * <p><b>Built once per session</b>, on first use, after every mod's client init has run (Mod Menu
@@ -118,7 +118,7 @@ public final class ModCatalog {
             else aux.add(mi);
         }
         // A suite with only one of its mods installed isn't shown as a suite: that mod stands on
-        // its own, in the list or in Auxiliary as any mod would (Trev, 2026-10-14).
+        // its own, in the list or in Auxiliary as any mod would.
         suites.forEach((id, members) -> {
             if (members.size() > 1) {
                 String named = suiteNames.get(id);

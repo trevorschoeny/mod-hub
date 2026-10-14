@@ -22,8 +22,8 @@ import java.util.function.IntSupplier;
  * frame, and the panel's reflow pushes everything after the section down by the same amount, so
  * the next box moves with this one's bottom edge.
  *
- * <p>ponytail: Mod Hub's own box; MenuKit has no public grouping box. Ask for one if a second
- * mod wants it.
+ * <p>Mod Hub's own box, since MenuKit has no public grouping box. Ask MenuKit for one if a
+ * second mod wants it.
  */
 public final class ModCard extends AbstractPanelElement {
 

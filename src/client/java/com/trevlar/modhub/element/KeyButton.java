@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
  * too. The screen hands it the key press ({@link #keyPressed}), since only the screen sees every key.
  *
  * <p>Mod Hub's own bindings, not vanilla {@code KeyMapping}s: vanilla wants every key registered
- * at startup, which would put one empty entry per mod in Controls (design, Decided).
+ * at startup, which would put one empty entry per mod in Controls.
  */
 public final class KeyButton extends Button {
 

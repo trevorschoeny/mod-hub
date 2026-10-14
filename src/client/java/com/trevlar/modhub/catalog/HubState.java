@@ -82,7 +82,7 @@ public final class HubState {
 
     /**
      * Moves {@code entry} one place left ({@code -1}) or right ({@code +1}) in the shortcut order.
-     * Nothing calls it yet: Trev is deciding how reordering should look (2026-10-14).
+     * Nothing calls it yet: how reordering should look is still open.
      */
     public static void move(String entry, int delta) {
         int i = data.order.indexOf(entry);

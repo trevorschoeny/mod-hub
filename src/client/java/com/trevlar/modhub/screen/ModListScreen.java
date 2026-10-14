@@ -120,8 +120,8 @@ public final class ModListScreen extends MKScreen {
             Tabs.TabSpec tab = Tabs.tab(e.id()).label(Component.literal(e.name()))
                     .visibleWhen(() -> matches(e))
                     .body(() -> page(e));
-            // The mod's own icon at 10 px beside its name (Trev, 2026-10-14); none for Auxiliary,
-            // or for a mod that ships no icon.
+            // The mod's own icon at 10 px beside its name. None for Auxiliary, or for a mod that
+            // ships no icon.
             ModIcons.Icon icon = ModIcons.of(e.iconKey());
             if (icon != null) tab.icon(icon::texture, icon.size(), 10);
             tabs.tab(tab);
@@ -149,9 +149,8 @@ public final class ModListScreen extends MKScreen {
 
     /**
      * Picks a tab. With a search typed, a suite opens scrolled to its first mod whose name
-     * matches, since that's what the player searched for.
-     * ponytail: the y is the card's with every Description closed; an open one above it lands the
-     * scroll a little short.
+     * matches, since that's what the player searched for. The y is the card's with every
+     * Description closed, so an open one above it lands the scroll a little short.
      */
     private static void select(String id) {
         selected = id;

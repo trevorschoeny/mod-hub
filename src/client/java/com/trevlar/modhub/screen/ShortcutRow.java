@@ -34,10 +34,10 @@ import java.util.function.Predicate;
  */
 public final class ShortcutRow {
 
-    /** Button size: the icon (14 px) with 4 px of the raised button round it on every side (Trev, 2026-10-14). */
+    /** Button size: the icon (14 px) with 4 px of the raised button round it on every side. */
     public static final int SIZE = 22;
 
-    /** ponytail: the row's places, fixed at init. Raise it if anyone pins more. */
+    // The row's places, fixed at init. Raise it if anyone pins more.
     private static final int PLACES = 32;
 
     private ShortcutRow() {}
@@ -83,8 +83,8 @@ public final class ShortcutRow {
 
     /**
      * This row's entries, in the player's order: pinned here, installed, and with settings.
-     * ponytail: worked out per call (a few dozen times a frame on a short list). Cache on
-     * HubState changes if a profile ever shows it.
+     * Worked out per call (a few dozen times a frame on a short list). Cache on HubState changes
+     * if a profile ever shows it.
      */
     private static List<HubEntry> entries(Predicate<String> shownHere) {
         List<HubEntry> out = new ArrayList<>();

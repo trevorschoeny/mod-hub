@@ -50,14 +50,14 @@ public final class ConfigScreen extends MKScreen {
     private static final Map<String, String> SELECTED = new HashMap<>();
     private static final Map<String, Double> SCROLL = new HashMap<>();
 
-    /** How far the menu starts below the name bar, clear of the top corners' buttons (Trev, 2026-10-14). */
+    /** How far the menu starts below the name bar, clear of the top corners' buttons. */
     private static final int TOP_ROOM = 9;
 
     private ConfigScreen(HubEntry entry, @Nullable Screen parent, ScreenKind kind) {
         super(Component.literal(entry.name()), kind,
                 List.of(main(entry, kind), done(), back(), modHub(parent), Confirm.panel("modhub:config_confirm")));
-        // Both looks name the screen in a bar at twice size across the top (Trev, 2026-10-14), so
-        // the vanilla title band goes.
+        // Both looks name the screen in a bar at twice size across the top, so the vanilla title
+        // band goes.
         hideTitle();
         setReturnAction(() -> Minecraft.getInstance().gui.setScreen(parent));
     }

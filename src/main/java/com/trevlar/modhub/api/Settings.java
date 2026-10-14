@@ -56,7 +56,7 @@ public final class Settings {
     private Path file;
     private final List<Setting<?>> settings = new ArrayList<>();
 
-    /** The file as last read, so keys this mod doesn't declare survive a save. */
+    // The file as last read, so keys this mod doesn't declare survive a save.
     private JsonObject stored = new JsonObject();
     private boolean loaded;
 
@@ -115,7 +115,7 @@ public final class Settings {
         return setting;
     }
 
-    /** Every setting back to its default, and one save. */
+    /** Puts every setting back to its default. */
     public void resetAll() {
         for (Setting<?> s : settings) s.reset();
     }
@@ -151,8 +151,8 @@ public final class Settings {
     /**
      * Writes every setting, on top of what was read, through a temp file.
      *
-     * <p>ponytail: writes on every change, as the Trevlar mods' own files do today. A slider drag
-     * writes once per step; files are a few hundred bytes. Debounce if a mod ever has a big one.
+     * <p>Writes on every change, as the Trevlar mods' own files do. A slider drag writes once per
+     * step, and files are a few hundred bytes. Debounce if a mod ever has a big one.
      */
     synchronized void save() {
         JsonObject out = stored.deepCopy();
