@@ -34,7 +34,7 @@ public abstract class PauseScreenMixin {
         // The guard keeps this harmless if a future version adds another row at this call.
         if (element instanceof LinearLayout row) {
             Screen self = (Screen) (Object) this;
-            row.addChild(SpriteIconButton.builder(Component.literal("Mods"), b -> ModListScreen.open(self), true)
+            row.addChild(SpriteIconButton.builder(Component.literal("Mod Hub"), b -> ModListScreen.open(self), true)
                     .width(20)
                     .sprite(MODS_SPRITE, 15, 15)
                     .withTootip()

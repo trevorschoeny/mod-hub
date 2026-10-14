@@ -8,6 +8,8 @@ import com.trevlar.menukit.api.element.TextRole;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -24,7 +26,7 @@ import java.util.function.BooleanSupplier;
 final class Body {
 
     static final int TEXT_ROW = 12;
-    static final int CONTROL_ROW = 22;
+    static final int CONTROL_ROW = 20;
     static final int GAP = 6;
 
     /** A divider's colour on the inventory look; the options look draws vanilla's separator. */
@@ -61,7 +63,14 @@ final class Body {
     }
 
     Body text(Component text, TextRole role) {
-        out.add(TextLabel.builder().at(0, y).text(text).role(role).visibleWhen(visible).build());
+        return text(text, role, null);
+    }
+
+    /** A line of text, explaining more on hover when {@code tooltip} is given. */
+    Body text(Component text, TextRole role, @Nullable Component tooltip) {
+        TextLabel.Builder label = TextLabel.builder().at(0, y).text(text).role(role).visibleWhen(visible);
+        if (tooltip != null) label.tooltip(tooltip);
+        out.add(label.build());
         y += TEXT_ROW;
         return this;
     }

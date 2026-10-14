@@ -21,6 +21,7 @@ import com.trevlar.modhub.catalog.HubState;
 import com.trevlar.modhub.catalog.ModCatalog;
 import com.trevlar.modhub.catalog.ModInfo;
 import com.trevlar.modhub.element.KeyButton;
+import com.trevlar.modhub.element.ModCard;
 import com.trevlar.modhub.element.ModIconImage;
 
 import net.minecraft.ChatFormatting;
@@ -46,10 +47,9 @@ import java.util.Objects;
  * Opened from the Mods button in the pause menu's icon row.
  *
  * <p>The sidebar is MenuKit's {@code Tabs}, one tab per entry ({@link ModCatalog#entries()}), with
- * a search field and New folder above it. A tab's page is the entry's details: its icon, name,
- * version, authors and description, Configure, then the list settings (shortcut, key, folder),
- * then its links. A suite, folder or Auxiliary lists its mods instead; clicking one shows that
- * mod's details in place, with Back.
+ * a search field and New folder above it. Every page has one shape: a compact header, then the
+ * controls row (configs, key, the shortcut's two checkboxes, folder). A suite, folder or
+ * Auxiliary then lists each of its mods as a card with a controls row of its own.
  *
  * <p>The list's structure (which tabs exist, their names) is fixed when the screen is built, as
  * every MenuKit screen's is. A change to it (a folder made, renamed, deleted, or an entry moved)
@@ -62,20 +62,15 @@ public final class ModListScreen extends MKScreen {
     private static String search = "";
     private static final Map<String, Double> SCROLL = new HashMap<>();
 
-    /** In a suite, folder or Auxiliary: the member whose details are showing, by entry id. */
-    private static final Map<String, String> MEMBER = new HashMap<>();
-
     /** Folder names being typed, by folder id, until Rename. */
     private static final Map<String, String> RENAMING = new HashMap<>();
-
-    /** The shortcut row's order list shows this many places at most. */
-    private static final int ORDER_ROWS = 24;
 
     private final @Nullable Screen parent;
 
     private ModListScreen(@Nullable Screen parent, ScreenKind kind) {
         super(Component.literal("Mods"), kind, List.of(main(kind), done(), Confirm.panel("modhub:list_confirm")));
         this.parent = parent;
+        if (kind == ScreenKind.CONTAINER) hideTitle();
         setReturnAction(() -> Minecraft.getInstance().gui.setScreen(parent));
     }
 
@@ -127,11 +122,13 @@ public final class ModListScreen extends MKScreen {
                     .visibleWhen(() -> matches(e))
                     .body(() -> page(e)));
         }
-        return Panel.builder("modhub:list")
-                .style(kind == ScreenKind.OPTIONS ? PanelStyle.NONE : PanelStyle.RAISED)
-                .position(PanelPosition.main())
-                .add(tabs.build())
-                .build();
+        boolean options = kind == ScreenKind.OPTIONS;
+        if (!options) tabs.at(0, NameBar.HEIGHT + NameBar.GAP);
+        Panel.Builder panel = Panel.builder("modhub:list")
+                .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
+                .position(PanelPosition.main());
+        if (!options) panel.add(NameBar.of("Mods"));
+        return panel.add(tabs.build()).build();
     }
 
     private static Panel done() {
@@ -155,66 +152,52 @@ public final class ModListScreen extends MKScreen {
     }
 
     // Pages
+    //
+    // Every page starts the same: a compact header (icon, name, a line under it, the description)
+    // and the entry's controls row. A suite, folder or Auxiliary then shows each of its mods as a
+    // card, each with the same controls row of its own, so nothing has to be opened to be seen.
+
+    /** The configs button's face, a gear. */
+    private static final net.minecraft.resources.Identifier CONFIGS_ICON =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("modhub", "icon/configs");
 
     private static List<PanelElement> page(HubEntry e) {
         Body body = new Body();
         switch (e) {
             case HubEntry.Single s -> {
-                modDetails(body, s.mod(), true);
-                body.gap(Body.GAP);
-                listSettings(body, s);
-                if (s.mod().id().equals("modhub")) shortcutOrder(body);
+                header(body, s.name(), s.mod(), byline(s.mod()), s.mod().description());
+                controls(body, s, true);
                 links(body, s.mod());
             }
             case HubEntry.Suite s -> {
-                groupHeader(body, s, s.mods().size() + (s.mods().size() == 1 ? " mod" : " mods") + " in this suite");
-                listSettings(body, s);
-                members(body, s, "Mods in this suite");
+                header(body, s.name(), s.iconMod(), count(s.mods().size()) + " in this suite", null);
+                controls(body, s, true);
+                for (ModInfo m : s.mods()) card(body, new HubEntry.Single(m), m.description());
             }
             case HubEntry.Folder f -> {
-                groupHeader(body, f, "Your folder");
+                header(body, f.name(), f.iconMod(), "Your folder, " + count(f.mods().size()), null);
                 folderControls(body, f);
-                if (f.configurable()) listSettings(body, f);
+                if (f.configurable()) controls(body, f, false);
                 if (f.members().isEmpty()) {
-                    body.text(Component.literal("Empty. Add a mod or suite from its own page (Folder)."), TextRole.MUTED);
-                } else {
-                    members(body, f, "In this folder");
+                    body.text(Component.literal("Empty. Put a mod or suite in it from its own page (Folder)."),
+                            TextRole.MUTED);
+                }
+                for (HubEntry m : f.members()) {
+                    card(body, m, m instanceof HubEntry.Single one ? one.mod().description()
+                            : count(m.mods().size()) + " in this suite");
                 }
             }
             case HubEntry.Auxiliary a -> {
-                body.heading("Auxiliary");
-                body.text(Component.literal("Mods with no settings of their own: libraries, Fabric API's"), TextRole.MUTED);
-                body.text(Component.literal("modules, and mods with nothing to set."), TextRole.MUTED);
-                body.gap(Body.GAP);
-                members(body, a, a.mods().size() + " mods");
+                header(body, a.name(), null, count(a.mods().size()), "Mods with no settings of their own: libraries, "
+                        + "Fabric API's modules, and mods with nothing to set.");
+                for (ModInfo m : a.mods()) card(body, new HubEntry.Single(m), m.description());
             }
         }
         return body.build();
     }
 
-    /**
-     * A mod's icon, name, version, authors and description. With {@code preview}, also the icon at
-     * the sizes a tiny sidebar icon could be, for Trev to pick from (design, Decided 2).
-     */
-    private static void modDetails(Body body, ModInfo mod, boolean preview) {
-        body.row((y, v) -> List.of(
-                new ModIconImage(0, y, 32, mod.id(), mod.name(), v),
-                TextLabel.builder().at(40, y + 2).text(Component.literal(mod.name()).withStyle(ChatFormatting.BOLD))
-                        .role(TextRole.HEADING).visibleWhen(v).build(),
-                TextLabel.builder().at(40, y + 16).text(Component.literal(byline(mod)))
-                        .role(TextRole.MUTED).visibleWhen(v).build()), 38);
-        if (!mod.description().isBlank()) body.text(Component.literal(mod.description()), TextRole.BODY);
-        if (preview) {
-            body.gap(4);
-            body.text(Component.literal("Tiny icon preview, as the sidebar could show it:"), TextRole.MUTED);
-            body.row((y, v) -> List.of(
-                    new ModIconImage(0, y + 1, 8, mod.id(), mod.name(), v),
-                    TextLabel.builder().at(11, y + 1).text(Component.literal(mod.name() + "  (8 px)"))
-                            .visibleWhen(v).build(),
-                    new ModIconImage(110, y, 10, mod.id(), mod.name(), v),
-                    TextLabel.builder().at(123, y + 1).text(Component.literal(mod.name() + "  (10 px)"))
-                            .visibleWhen(v).build()), Body.TEXT_ROW + 2);
-        }
+    private static String count(int n) {
+        return n + (n == 1 ? " mod" : " mods");
     }
 
     private static String byline(ModInfo mod) {
@@ -222,53 +205,59 @@ public final class ModListScreen extends MKScreen {
         return mod.authors().isEmpty() ? v : v + "  ·  by " + String.join(", ", mod.authors());
     }
 
-    /** A suite's or folder's top: its icon (its first mod's), name and a line under it. */
-    private static void groupHeader(Body body, HubEntry e, String line) {
-        ModInfo icon = e.iconMod();
+    /**
+     * A page's top: the icon (or none, for Auxiliary), the name in bold, a muted line beside it, and
+     * the description under them when there is one.
+     */
+    private static void header(Body body, String title, @Nullable ModInfo icon, String line, @Nullable String description) {
         body.row((y, v) -> {
             List<PanelElement> out = new ArrayList<>();
-            if (icon != null) out.add(new ModIconImage(0, y, 32, icon.id(), icon.name(), v));
-            int x = icon != null ? 40 : 0;
-            out.add(TextLabel.builder().at(x, y + 2).text(Component.literal(e.name()).withStyle(ChatFormatting.BOLD))
+            int x = 0;
+            if (icon != null) {
+                out.add(new ModIconImage(0, y, 20, icon.id(), icon.name(), v));
+                x = 26;
+            }
+            out.add(TextLabel.builder().at(x, y).text(Component.literal(title).withStyle(ChatFormatting.BOLD))
                     .role(TextRole.HEADING).visibleWhen(v).build());
-            out.add(TextLabel.builder().at(x, y + 16).text(Component.literal(line))
+            out.add(TextLabel.builder().at(x, y + 11).text(Component.literal(line))
                     .role(TextRole.MUTED).visibleWhen(v).build());
             return out;
-        }, 38);
-        body.gap(Body.GAP);
+        }, 24);
+        if (description != null && !description.isBlank()) body.text(Component.literal(description), TextRole.BODY);
+        body.gap(4);
     }
 
     /**
-     * Configure, then the entry's list settings: its shortcut (pause menu, inventory), its key,
-     * and (for a mod or suite) its folder. Nothing for an entry with no settings: there's nothing
-     * for a shortcut to open.
+     * The controls row, the same for every entry: the configs button (a gear), the key, then the
+     * shortcut's two checkboxes, then (for a mod or suite at the top level) its folder. Wraps when
+     * the page is narrow. An entry with no settings has nothing for a shortcut to open, so its
+     * row is only the folder.
      */
-    private static void listSettings(Body body, HubEntry e) {
-        if (!e.configurable()) {
-            body.text(Component.literal("No settings."), TextRole.MUTED);
-            body.gap(Body.GAP);
-            if (!(e instanceof HubEntry.Folder)) folderChoice(body, e);
-            return;
-        }
-        body.row((y, v) -> List.of(Button.builder().at(0, y).size(110, 20)
-                .label(Component.literal("Configure")).visibleWhen(v)
-                .onClick(() -> ConfigScreen.open(e, Minecraft.getInstance().gui.screen())).build()), 26);
-        body.row((y, v) -> List.of(Flow.builder().at(0, y).gap(10, 4).visibleWhen(v)
-                .add(TextLabel.builder().text(Component.literal("Shortcut")).build())
-                .add(Checkbox.builder().label(Component.literal("Pause menu"))
-                        .state(() -> HubState.pause(e.id()), on -> HubState.setPause(e.id(), on)).build())
-                .add(Checkbox.builder().label(Component.literal("Inventory"))
-                        .state(() -> HubState.inventory(e.id()), on -> HubState.setInventory(e.id(), on)).build())
-                .build()), Body.TEXT_ROW + 8);
-        body.row((y, v) -> List.of(
-                TextLabel.builder().at(0, y + 4).text(Component.literal("Key")).visibleWhen(v).build(),
-                KeyButton.of(54, y, e.id())), Body.CONTROL_ROW);
-        if (!(e instanceof HubEntry.Folder)) folderChoice(body, e);
+    private static void controls(Body body, HubEntry e, boolean folder) {
+        body.row((y, v) -> List.of(controlsRow(0, y, e, folder, v)), Body.CONTROL_ROW + 2);
         body.gap(Body.GAP);
     }
 
+    private static PanelElement controlsRow(int x, int y, HubEntry e, boolean folder, java.util.function.BooleanSupplier v) {
+        Flow.Builder row = Flow.builder().at(x, y).gap(6, 4).visibleWhen(v);
+        if (e.configurable()) {
+            row.add(Button.builder().icon(CONFIGS_ICON).size(16, 16)
+                    .tooltip(Component.literal(e.name() + " configs"))
+                    .onClick(() -> ConfigScreen.open(e, Minecraft.getInstance().gui.screen())).build());
+            row.add(KeyButton.of(0, 0, e.id()));
+            row.add(Checkbox.builder().label(Component.literal("Pause menu"))
+                    .tooltip(Component.literal("A shortcut to " + e.name() + " at the top of the pause menu"))
+                    .state(() -> HubState.pause(e.id()), on -> HubState.setPause(e.id(), on)).build());
+            row.add(Checkbox.builder().label(Component.literal("Inventory"))
+                    .tooltip(Component.literal("A shortcut to " + e.name() + " at the top of inventories and containers"))
+                    .state(() -> HubState.inventory(e.id()), on -> HubState.setInventory(e.id(), on)).build());
+        }
+        if (folder) row.add(folderChoice(e));
+        return row.build();
+    }
+
     /** Which folder the entry is in, or None. Moving it changes the sidebar, so it rebuilds. */
-    private static void folderChoice(Body body, HubEntry e) {
+    private static PanelElement folderChoice(HubEntry e) {
         List<String> choices = new ArrayList<>();
         choices.add("");   // the top level
         Map<String, String> names = new HashMap<>();
@@ -276,20 +265,19 @@ public final class ModListScreen extends MKScreen {
             choices.add(f.id);
             names.put(f.id, f.name);
         }
-        body.row((y, v) -> List.of(
-                TextLabel.builder().at(0, y + 4).text(Component.literal("Folder")).visibleWhen(v).build(),
-                Dropdown.<String>builder().at(54, y).size(110, 16).items(choices)
-                        .label(id -> Component.literal(id.isEmpty() ? "None" : names.getOrDefault(id, id)))
-                        .state(() -> Objects.requireNonNullElse(HubState.folderOf(e.id()), ""),
-                                id -> {
-                                    String now = Objects.requireNonNullElse(HubState.folderOf(e.id()), "");
-                                    if (id.equals(now)) return;
-                                    HubState.setFolder(e.id(), id.isEmpty() ? null : id);
-                                    rebuild();
-                                })
-                        .disabledWhen(() -> choices.size() == 1)
-                        .tooltip(Component.literal(choices.size() == 1 ? "Make a folder first (New folder)." : "Put this in one of your folders."))
-                        .visibleWhen(v).build()), Body.CONTROL_ROW);
+        return Dropdown.<String>builder().size(110, 16).items(choices)
+                .label(id -> Component.literal("Folder: " + (id.isEmpty() ? "None" : names.getOrDefault(id, id))))
+                .state(() -> Objects.requireNonNullElse(HubState.folderOf(e.id()), ""),
+                        id -> {
+                            String now = Objects.requireNonNullElse(HubState.folderOf(e.id()), "");
+                            if (id.equals(now)) return;
+                            HubState.setFolder(e.id(), id.isEmpty() ? null : id);
+                            rebuild();
+                        })
+                .disabledWhen(() -> choices.size() == 1)
+                .tooltip(Component.literal(choices.size() == 1 ? "Make a folder first (New folder)."
+                        : "Put this in one of your folders."))
+                .build();
     }
 
     /** A folder's name, with Rename, and Delete. */
@@ -315,38 +303,20 @@ public final class ModListScreen extends MKScreen {
     }
 
     /**
-     * A group's mods: one row each (tiny icon, name, version), and in the same place, each one's
-     * details with Back, shown while it's picked. A folder's members are whole entries, so a suite
-     * in a folder shows as its mods.
+     * One member as a card: its icon, name, version and a line of description, and its own
+     * controls row inside the card when it has settings. A mod in a suite has its own shortcut and
+     * key, apart from the suite's.
      */
-    private static void members(Body body, HubEntry group, String title) {
-        String key = group.id();
-        body.when(() -> !MEMBER.containsKey(key));
-        int top = body.y();
-        body.heading(title);
-        for (ModInfo m : group.mods()) {
-            body.row((y, v) -> List.of(
-                    new ModIconImage(0, y + 2, 12, m.id(), m.name(), v),
-                    Button.builder().at(16, y).size(220, 16).visibleWhen(v)
-                            .label(Component.literal(m.name() + "   " + m.version()))
-                            .onClick(() -> MEMBER.put(key, m.id())).build()), 18);
-        }
-        // Each member's details, laid over the list, shown only while picked.
-        for (ModInfo m : group.mods()) {
-            body.at(top).when(() -> m.id().equals(MEMBER.get(key)));
-            body.row((y, v) -> List.of(Button.builder().at(0, y).size(60, 16).label(Component.literal("< Back"))
-                    .visibleWhen(v).onClick(() -> MEMBER.remove(key)).build()), Body.CONTROL_ROW);
-            modDetails(body, m, false);
-            body.gap(Body.GAP);
-            if (m.configurable()) {
-                body.row((y, v) -> List.of(Button.builder().at(0, y).size(110, 20)
-                        .label(Component.literal("Configure")).visibleWhen(v)
-                        .onClick(() -> ConfigScreen.open(new HubEntry.Single(m), Minecraft.getInstance().gui.screen()))
-                        .build()), 26);
-            }
-            links(body, m);
-        }
-        body.when(() -> true);
+    private static void card(Body body, HubEntry member, String description) {
+        ModInfo icon = member.iconMod();
+        boolean controls = member.configurable();
+        String version = member instanceof HubEntry.Single s ? s.mod().version() : "";
+        body.row((y, v) -> {
+            List<PanelElement> out = new ArrayList<>();
+            out.add(new ModCard(y, controls, icon == null ? "" : icon.id(), member.name(), version, description, v));
+            if (controls) out.add(controlsRow(ModCard.TEXT_X, y + ModCard.CONTROLS_Y - 4, member, false, v));
+            return out;
+        }, (controls ? ModCard.HEIGHT_WITH_CONTROLS : ModCard.HEIGHT_PLAIN) + 4);
     }
 
     /** The mod's links, each through vanilla's "open this link?" screen. */
@@ -365,41 +335,5 @@ public final class ModListScreen extends MKScreen {
                     }).build()));
             return List.of(row.build());
         }, Body.CONTROL_ROW);
-    }
-
-    /**
-     * Mod Hub's own page: the shortcut row's order, one line per shortcut with Left and Right.
-     * ponytail: a fixed {@link #ORDER_ROWS} lines, each showing whichever shortcut is in its place
-     * now, since the screen's structure is fixed at build. Raise it if anyone pins more.
-     */
-    private static void shortcutOrder(Body body) {
-        body.heading("Shortcut order");
-        body.when(() -> HubState.shortcutOrder().isEmpty());
-        body.text(Component.literal("No shortcuts yet. Turn one on from a mod's page."), TextRole.MUTED);
-        for (int i = 0; i < ORDER_ROWS; i++) {
-            int place = i;
-            body.when(() -> place < HubState.shortcutOrder().size());
-            body.row((y, v) -> List.of(
-                    Button.builder().at(0, y).size(16, 16).label(Component.literal("<")).visibleWhen(v)
-                            .disabledWhen(() -> place == 0)
-                            .onClick(() -> HubState.move(HubState.shortcutOrder().get(place), -1)).build(),
-                    Button.builder().at(18, y).size(16, 16).label(Component.literal(">")).visibleWhen(v)
-                            .disabledWhen(() -> place >= HubState.shortcutOrder().size() - 1)
-                            .onClick(() -> HubState.move(HubState.shortcutOrder().get(place), 1)).build(),
-                    TextLabel.builder().at(40, y + 4).visibleWhen(v)
-                            .text(() -> Component.literal(orderLabel(place))).build()), 18);
-        }
-        body.when(() -> true);
-        body.gap(Body.GAP);
-    }
-
-    private static String orderLabel(int place) {
-        List<String> order = HubState.shortcutOrder();
-        if (place >= order.size()) return "";
-        String id = order.get(place);
-        HubEntry e = ModCatalog.find(id);
-        String where = (HubState.pause(id) ? "pause menu" : "") + (HubState.pause(id) && HubState.inventory(id) ? ", " : "")
-                + (HubState.inventory(id) ? "inventory" : "");
-        return (place + 1) + ". " + (e != null ? e.name() : id + " (not installed)") + "  (" + where + ")";
     }
 }

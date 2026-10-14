@@ -15,7 +15,7 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The button that sets an entry's key. Click it and it waits ("> Press a key <"); the next key
+ * The button that sets an entry's key. Click it and it waits ("> Press a key"); the next key
  * pressed on the screen binds, Escape cancels, Backspace or Delete unbinds. Right-click unbinds
  * too. The screen hands it the key press ({@link #keyPressed}), since only the screen sees every key.
  *
@@ -36,7 +36,7 @@ public final class KeyButton extends Button {
 
     public static Button of(int x, int y, String entry) {
         Builder b = new Builder(entry);
-        b.at(x, y).size(110, 16)
+        b.at(x, y).size(90, 16)
                 .onClick(() -> waiting = entry)
                 .onSecondaryClick(click -> { HubState.setKey(entry, null); waiting = null; })
                 .tooltip(Component.literal("Click, then press a key.\nBackspace or right-click clears it."));
@@ -74,10 +74,10 @@ public final class KeyButton extends Button {
     protected void renderContent(RenderContext ctx, int sx, int sy, Look look) {
         Component label;
         if (entry.equals(waiting)) {
-            label = Component.literal("> Press a key <").withStyle(ChatFormatting.YELLOW);
+            label = Component.literal("> Press a key").withStyle(ChatFormatting.YELLOW);
         } else {
             Integer key = HubState.key(entry);
-            label = key == null ? Component.literal("Not bound") : keyName(key);
+            label = Component.literal("Key: ").append(key == null ? Component.literal("None") : keyName(key));
         }
         int color = look.disabled() ? ctx.kind().textColor(TextRole.DISABLED) : ElementConstants.TEXT_LIGHT;
         Text.renderCentered(ctx.graphics(), label, sx, sy, getWidth(), getHeight(), color, true);

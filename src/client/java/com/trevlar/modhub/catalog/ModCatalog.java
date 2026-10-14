@@ -49,7 +49,8 @@ public final class ModCatalog {
     private static @Nullable Built built;
 
     /** The sorted mods and suites, before folders. */
-    private record Built(List<HubEntry> topLevel, Map<String, HubEntry> byId, List<ModInfo> auxiliary) {}
+    private record Built(List<HubEntry> topLevel, Map<String, HubEntry> byId, List<ModInfo> auxiliary,
+                         List<ModInfo> all) {}
 
     private ModCatalog() {}
 
@@ -77,10 +78,20 @@ public final class ModCatalog {
         return out;
     }
 
-    /** The entry with {@code id}, folders included, or null when it isn't installed. */
+    /**
+     * The entry with {@code id}, or null when it isn't installed: a sidebar entry (folders
+     * included), or any single mod by {@code mod:<id>}, so a mod inside a suite or folder can have
+     * its own shortcut and key too.
+     */
     public static @Nullable HubEntry find(String id) {
         for (HubEntry e : entries()) if (e.id().equals(id)) return e;
-        return built().byId().get(id);
+        HubEntry top = built().byId().get(id);
+        if (top != null) return top;
+        if (id.startsWith("mod:")) {
+            String modId = id.substring(4);
+            for (ModInfo m : built().all()) if (m.id().equals(modId)) return new HubEntry.Single(m);
+        }
+        return null;
     }
 
     private static Built built() {
@@ -122,7 +133,7 @@ public final class ModCatalog {
 
         Map<String, HubEntry> byId = new LinkedHashMap<>();
         for (HubEntry e : top) byId.put(e.id(), e);
-        return new Built(List.copyOf(top), byId, List.copyOf(aux));
+        return new Built(List.copyOf(top), byId, List.copyOf(aux), List.copyOf(mods));
     }
 
     /**
