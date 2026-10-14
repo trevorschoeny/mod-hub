@@ -84,7 +84,6 @@ public final class ModCatalog {
 
     private static Built build() {
         Map<String, Settings> settings = settingsByMod();
-        boolean modMenu = FabricLoader.getInstance().isModLoaded("modmenu");
 
         List<ModInfo> mods = new ArrayList<>();
         Map<String, String> suiteNames = new HashMap<>();
@@ -101,7 +100,7 @@ public final class ModCatalog {
             if (suite != null && suiteName != null) suiteNames.merge(suite, id + "\u0000" + suiteName, ModCatalog::firstById);
             if (suite != null && suiteIcon != null) suiteIcons.merge(suite, new String[]{id, suiteIcon},
                     (a, b) -> a[0].compareTo(b[0]) <= 0 ? a : b);
-            boolean mmScreen = modMenu && !settings.containsKey(id) && ModMenuBridge.hasScreen(id);
+            boolean mmScreen = !settings.containsKey(id) && ModMenuBridge.hasScreen(id);
             mods.add(new ModInfo(id, m.getName(), m.getVersion().getFriendlyString(), m.getDescription(),
                     m.getAuthors().stream().map(Person::getName).toList(), links(m),
                     settings.get(id), mmScreen, suite));

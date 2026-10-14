@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "modhub_modmenu_api",
+  "version": "${version}",
+  "name": "Mod Hub: Mod Menu API",
+  "description": "Mod Menu's API types, so Mod Hub can open other mods' settings screens when Mod Menu isn't installed. Never loaded alongside Mod Menu.",
+  "authors": ["trevorschoeny"],
+  "license": "MIT",
+  "environment": "client",
+  "breaks": {
+    "modmenu": "*"
+  },
+  "custom": {
+    "modmenu": { "parent": "modhub" }
+  }
+}

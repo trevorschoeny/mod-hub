@@ -44,7 +44,8 @@ dependencies {
     implementation project(':menukit')
 
     // Mod Menu: optional. When it's installed, Mod Hub opens third-party mods' screens through
-    // its public ModMenu.getConfigScreen. In the dev runtime so that path can be tried.
+    // its public ModMenu.getConfigScreen; without it, through the stand-in below. In the dev
+    // runtime so the Mod Menu path can be tried.
     compileOnly "com.terraformersmc:modmenu:21.0.0"
     localRuntime "com.terraformersmc:modmenu:21.0.0"
 
@@ -76,6 +77,20 @@ sourceSets {
     exampleMining {
         java.srcDirs = ['src/examples/mining/java']
         resources.srcDirs = ['src/examples/mining/resources']
+        compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
+    }
+    // Mod Menu's API types, for when Mod Menu isn't installed: built into their own small mod,
+    // nested in Mod Hub's jar, which the loader drops whenever the real Mod Menu is there
+    // (it declares `breaks: modmenu`). Compiled without Mod Menu on the classpath, so it can't
+    // lean on anything of Mod Menu's but the five types it copies.
+    modmenuApi {
+        java.srcDirs = ['src/modmenuApi/java']
+        resources.srcDirs = ['src/modmenuApi/resources']
+    }
+    // A production-shaped check of the gear, never shipped: see the prodCheck tasks below.
+    prodcheck {
+        java.srcDirs = ['src/prodcheck/java']
+        resources.srcDirs = ['src/prodcheck/resources']
         compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
     }
     // No sources: the classpath the dev client runs on, Mod Hub plus both examples.
@@ -125,8 +140,28 @@ dependencies {
     devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output
 }
 
+// The stand-in's own compile classpath is the client's, minus Mod Menu itself.
+sourceSets.modmenuApi.compileClasspath += sourceSets.client.compileClasspath.filter { !it.name.startsWith('modmenu') }
+
+// The stand-in as a jar of its own, nested in Mod Hub's under META-INF/jars and named in Mod Hub's
+// fabric.mod.json "jars", the way Fabric loads any jar-in-jar mod.
+def modmenuApiJar = tasks.register('modmenuApiJar', Jar) {
+    archiveFileName = 'modhub-modmenu-api.jar'
+    destinationDirectory = layout.buildDirectory.dir('nested')
+    from sourceSets.modmenuApi.output
+    from('LICENSE') { rename { "${it}_${project.name}" } }
+}
+
 jar {
     from('LICENSE') { rename { "${it}_${project.name}" } }
+    from(modmenuApiJar) { into 'META-INF/jars' }
+}
+
+processModmenuApiResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": inputs.properties.version
+    }
 }
 
 // Stamp the real project version into fabric.mod.json at build; a hardcoded manifest version
@@ -156,3 +191,28 @@ build.dependsOn verifyJarVersion
 // Kit version range check (menukit depend range vs menukit_version): the workspace root
 // build.gradle supplies this for every consumer, reaching in by task name and registering one
 // itself if a consumer defines none. Nothing to do here.
+
+// Production check of the gear: boots a real Fabric client on Mod Hub's built jar plus every jar
+// in -PprodCheckMods=<folder> (a launcher profile's mods folder, read only), runs the client
+// gametest in src/prodcheck, logs "MHCHECK" lines and screenshots each opened screen into
+// build/prodcheck/<task>/screenshots. Once with Mod Menu, once with its jar left out.
+//   ./gradlew :mod-hub:prodCheckWithModMenu :mod-hub:prodCheckWithoutModMenu -PprodCheckMods=...
+configurations { prodcheckGametest }
+dependencies {
+    prodcheckCompileOnly fabricApi.module('fabric-client-gametest-api-v1', property('fabric_version'))
+    prodcheckGametest(fabricApi.module('fabric-client-gametest-api-v1', property('fabric_version'))) { transitive = false }
+}
+def prodcheckJar = tasks.register('prodcheckJar', Jar) {
+    archiveFileName = 'modhub-prodcheck.jar'
+    destinationDirectory = layout.buildDirectory.dir('prodcheck')
+    from sourceSets.prodcheck.output
+}
+['WithModMenu': true, 'WithoutModMenu': false].each { name, withModMenu ->
+    tasks.register("prodCheck${name}", net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+        def folder = providers.gradleProperty('prodCheckMods')
+        mods.from(tasks.named('jar'), prodcheckJar, configurations.prodcheckGametest)
+        mods.from(folder.map { fileTree(it) { include '*.jar'; exclude 'modhub-*'; if (!withModMenu) exclude 'modmenu-*' } })
+        jvmArgs.add('-Dfabric.client.gametest')
+        runDir = layout.buildDirectory.dir("prodcheck/${name}")
+    }
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "modhub_prodcheck",
+  "version": "1.0.0",
+  "name": "Mod Hub production check",
+  "description": "Presses Mod Hub's gear for every mod with a Mod Menu screen in a production-shaped client. Never shipped.",
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": ["com.trevlar.modhub.prodcheck.ConfigGearCheck"],
+    "modmenu": ["com.trevlar.modhub.prodcheck.NeedsModMenuEntry"]
+  },
+  "depends": { "modhub": "*" }
+}

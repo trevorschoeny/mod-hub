@@ -82,7 +82,8 @@ public final class ModListScreen extends MKScreen {
         Minecraft.getInstance().gui.setScreen(create(parent));
     }
 
-    private static ModListScreen create(@Nullable Screen parent) {
+    /** The mod list over {@code parent}. Public for the Mod Menu API stand-in's {@code createModsScreen}. */
+    public static ModListScreen create(@Nullable Screen parent) {
         return new ModListScreen(parent, ModHubSettings.OPTIONS_LOOK.get() ? ScreenKind.OPTIONS : ScreenKind.CONTAINER);
     }
 
