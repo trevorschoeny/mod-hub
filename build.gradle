@@ -1,0 +1,142 @@
+// Mod Hub: a mod list and a settings home in one (formerly ConfigKit). Players find every
+// installed mod, open its settings and pin shortcuts to it; developers declare settings once
+// in common code and get a file, a screen and a value a dedicated server can read.
+// Universal (`environment: "*"`): server-side settings are read from the server's own file.
+//
+// The repo folder and Gradle project are still `configkit` until the workspace rename
+// (Lead's); the mod id, jar and packages are `modhub` from the first commit.
+// Build with `./gradlew :configkit:build` from the workspace root.
+
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
+    id 'java'
+}
+
+version = property('configkit_version')
+group   = 'com.trevlar'
+
+base.archivesName = 'modhub'
+
+java {
+    // Minecraft 26.x runs on Java 25.
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+repositories {
+    maven { url 'https://maven.fabricmc.net/' }
+    maven { url 'https://maven.terraformersmc.com/releases/' }
+}
+
+// MenuKit's client source set must exist before this project reads it.
+evaluationDependsOn(':menukit')
+
+dependencies {
+    // 26.x: the game is unobfuscated, so no mappings line and plain java configurations.
+    minecraft "com.mojang:minecraft:${property('minecraft_version')}"
+    implementation "net.fabricmc:fabric-loader:${property('loader_version')}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
+
+    // MenuKit draws every screen and the shortcut row.
+    implementation project(':menukit')
+
+    // Mod Menu: optional. When it's installed, Mod Hub opens third-party mods' screens through
+    // its public ModMenu.getConfigScreen. In the dev runtime so that path can be tried.
+    compileOnly "com.terraformersmc:modmenu:21.0.0"
+    localRuntime "com.terraformersmc:modmenu:21.0.0"
+
+    compileOnly 'org.jetbrains:annotations:24.1.0'
+}
+
+loom {
+    // Anything that touches a screen lives in src/client. src/main runs on both sides, and the
+    // compiler refuses a main class that reaches a client one: that's what keeps a mod's
+    // settings readable on a dedicated server.
+    splitEnvironmentSourceSets()
+}
+
+// Two example mods for the dev runtime and Test Gallery only, never shipped: they're in one
+// suite, so the mod list and the config screen have something real to show beyond Mod Hub.
+// ponytail: dev-only source sets inside this repo; a validator-modhub project if they grow.
+sourceSets {
+    exampleLumber {
+        java.srcDirs = ['src/examples/lumber/java']
+        resources.srcDirs = ['src/examples/lumber/resources']
+        compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
+    }
+    exampleMining {
+        java.srcDirs = ['src/examples/mining/java']
+        resources.srcDirs = ['src/examples/mining/resources']
+        compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
+    }
+    // No sources: the classpath the dev client runs on, Mod Hub plus both examples.
+    devRun {
+        runtimeClasspath += client.runtimeClasspath + main.output + client.output +
+                exampleLumber.output + exampleMining.output
+    }
+}
+
+loom {
+    mods {
+        'modhub' {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+        'modhub_example_lumber' { sourceSet sourceSets.exampleLumber }
+        'modhub_example_mining' { sourceSet sourceSets.exampleMining }
+    }
+    runs {
+        client {
+            ideConfigGenerated = false
+            source sourceSets.devRun
+        }
+        // Test Gallery: boots straight into the generated test world in run/saves/TestGallery.
+        // Generate it with `test-gallery/run-scene.sh <mod> <scene>` (which also runs this).
+        testGallery {
+            inherit client
+            name 'Test Gallery'
+            programArgs '--quickPlaySingleplayer', 'TestGallery'
+            ideConfigGenerated = false
+        }
+        server { ideConfigGenerated = false }
+    }
+}
+
+// Declared after loom {} so the client source set exists. MenuKit splits its source sets too,
+// so its client half is added here. A published jar holds both halves.
+dependencies {
+    clientImplementation rootProject.project(':menukit').sourceSets.client.output
+    clientCompileOnly "com.terraformersmc:modmenu:21.0.0"
+}
+
+jar {
+    from('LICENSE') { rename { "${it}_${project.name}" } }
+}
+
+// Stamp the real project version into fabric.mod.json at build; a hardcoded manifest version
+// silently breaks every dependency gate against this mod.
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": inputs.properties.version
+    }
+}
+
+// The shipped jar must self-report the bumped version (ci-cd.md stage 2).
+tasks.register('verifyJarVersion') {
+    dependsOn 'jar'
+    doLast {
+        def jar = tasks.named('jar').get().archiveFile.get().asFile
+        def modJson = zipTree(jar).matching { include 'fabric.mod.json' }.singleFile
+        def stamped = new groovy.json.JsonSlurper().parse(modJson).version
+        if (stamped != project.version.toString()) {
+            throw new GradleException("${jar.name}: fabric.mod.json says ${stamped}, expected ${project.version}")
+        }
+        println "verifyJarVersion: ${jar.name} reports ${stamped}"
+    }
+}
+build.dependsOn verifyJarVersion
+
+// Kit version range check (menukit depend range vs menukit_version): the workspace root
+// build.gradle supplies this for every consumer now (Beryl, 2026-10-12), reaching in by task
+// name and registering one itself if a consumer defines none. Nothing to do here.
