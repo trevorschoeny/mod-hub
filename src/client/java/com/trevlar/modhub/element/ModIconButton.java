@@ -2,6 +2,7 @@ package com.trevlar.modhub.element;
 
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.RenderContext;
+import com.trevlar.modhub.catalog.ModIcons;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -14,8 +15,11 @@ import java.util.function.Supplier;
  */
 public final class ModIconButton extends Button {
 
-    /** What the face shows: a mod's icon, or its name's initials when it has none. */
-    public record Face(String modId, String name) {}
+    /**
+     * What the face shows: the icon for {@code iconKey}, or the name's initials when there's none,
+     * since a shortcut has to show something to be told apart.
+     */
+    public record Face(@Nullable String iconKey, String name) {}
 
     /** The icon's inset from the button's edge. */
     private static final int INSET = 2;
@@ -38,7 +42,16 @@ public final class ModIconButton extends Button {
     protected void renderContent(RenderContext ctx, int sx, int sy, Look look) {
         Face f = face.get();
         if (f == null) return;
-        ModIconImage.draw(ctx, f.modId(), f.name(), sx + INSET, sy + INSET, getWidth() - INSET * 2);
+        int size = getWidth() - INSET * 2;
+        ModIcons.Icon icon = ModIcons.of(f.iconKey());
+        if (icon != null) {
+            ModIconImage.draw(ctx, icon, sx + INSET, sy + INSET, size);
+            return;
+        }
+        var font = net.minecraft.client.Minecraft.getInstance().font;
+        String letters = ModIcons.initials(f.name());
+        ctx.graphics().text(font, letters, sx + (getWidth() - font.width(letters)) / 2, sy + (getHeight() - 8) / 2,
+                ctx.kind().textColor(com.trevlar.menukit.api.element.TextRole.HEADING), ctx.kind().textShadow());
     }
 
     public static final class Builder extends Button.Builder {

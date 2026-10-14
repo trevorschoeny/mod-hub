@@ -115,15 +115,14 @@ public final class ModListScreen extends MKScreen {
                 .state(() -> selected, ModListScreen::select)
                 .bodyScroll(SCROLL::get, SCROLL::put)
                 .sidebarHeader(TextField.builder().size(100, 16).hint(Component.literal("Search"))
-                        .state(() -> search, s -> search = s).build());
+                        .state(() -> search, ModListScreen::search).build());
         for (HubEntry e : ModCatalog.entries()) {
             Tabs.TabSpec tab = Tabs.tab(e.id()).label(Component.literal(e.name()))
                     .visibleWhen(() -> matches(e))
                     .body(() -> page(e));
             // The mod's own icon at 10 px beside its name (Trev, 2026-10-14); none for Auxiliary,
             // or for a mod that ships no icon.
-            ModInfo iconMod = e instanceof HubEntry.Auxiliary ? null : e.iconMod();
-            ModIcons.Icon icon = iconMod == null ? null : ModIcons.of(iconMod.id());
+            ModIcons.Icon icon = ModIcons.of(e.iconKey());
             if (icon != null) tab.icon(icon::texture, icon.size(), 10);
             tabs.tab(tab);
         }
@@ -170,6 +169,16 @@ public final class ModListScreen extends MKScreen {
         }
     }
 
+    /**
+     * A new search: every page's scroll goes back to the top, so the next suite picked scrolls to
+     * its match from a clean start rather than from where the last search left it.
+     */
+    private static void search(String query) {
+        if (query.equals(search)) return;
+        search = query;
+        SCROLL.clear();
+    }
+
     /** Search: the entry's name, or any of its mods' names. Names only, never descriptions. */
     private static boolean matches(HubEntry e) {
         String q = search.strip().toLowerCase(Locale.ROOT);
@@ -196,7 +205,7 @@ public final class ModListScreen extends MKScreen {
         switch (e) {
             case HubEntry.Single s -> {
                 // One mod on its own: the description in full, its links under it, no dropdown.
-                header(body, s.name(), s.mod(), byline(s.mod()), s.mod().description());
+                header(body, s.name(), s.iconKey(), byline(s.mod()), s.mod().description());
                 if (!s.mod().links().isEmpty()) {
                     body.row((y, v) -> links(0, y, s.mod(), v), Body.CONTROL_ROW);
                     body.gap(2);
@@ -204,7 +213,7 @@ public final class ModListScreen extends MKScreen {
                 controls(body, s);
             }
             case HubEntry.Suite s -> {
-                header(body, s.name(), s.iconMod(), count(s.mods().size()) + " in this suite", null);
+                header(body, s.name(), s.iconKey(), count(s.mods().size()) + " in this suite", null);
                 controls(body, s);
                 for (ModInfo m : s.mods()) card(body, s.id(), m);
             }
@@ -230,12 +239,13 @@ public final class ModListScreen extends MKScreen {
      * A page's top: the icon (or none, for Auxiliary), the name in bold, a muted line under it, and
      * a description under them when there is one (a group's own; a mod's is a section instead).
      */
-    private static void header(Body body, String title, @Nullable ModInfo icon, String line, @Nullable String description) {
+    private static void header(Body body, String title, @Nullable String iconKey, String line, @Nullable String description) {
         body.row((y, v) -> {
             List<PanelElement> out = new ArrayList<>();
             int x = 0;
-            if (icon != null) {
-                out.add(new ModIconImage(0, y, 20, icon.id(), icon.name(), v));
+            // No icon: no picture, and the name and line start at the left edge.
+            if (ModIcons.of(iconKey) != null) {
+                out.add(new ModIconImage(0, y, 20, iconKey, v));
                 x = 26;
             }
             out.add(TextLabel.builder().at(x, y).text(Component.literal(title).withStyle(ChatFormatting.BOLD))

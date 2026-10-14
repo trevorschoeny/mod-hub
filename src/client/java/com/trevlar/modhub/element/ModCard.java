@@ -39,6 +39,7 @@ public final class ModCard extends AbstractPanelElement {
 
     private final String modId;
     private final String name;
+    private final boolean hasIcon;
     private final String version;
     private final int baseHeight;
     private final IntSupplier extra;
@@ -55,6 +56,7 @@ public final class ModCard extends AbstractPanelElement {
         this.childY = y;
         this.modId = modId;
         this.name = name;
+        this.hasIcon = com.trevlar.modhub.catalog.ModIcons.of(modId) != null;
         this.version = version;
         this.baseHeight = height(description, controls);
         this.height = baseHeight;
@@ -92,11 +94,12 @@ public final class ModCard extends AbstractPanelElement {
         g.fill(x, y, x + w, y + h, options ? 0x40000000 : 0x14000000);
         g.outline(x, y, w, h, options ? 0x30FFFFFF : 0xFF8B8B8B);
 
-        ModIconImage.draw(ctx, modId, name, x + PAD, y + PAD, ICON);
+        // No icon: no picture, and the name moves left into its place.
+        ModIconImage.draw(ctx, com.trevlar.modhub.catalog.ModIcons.of(modId), x + PAD, y + PAD, ICON);
 
         var font = Minecraft.getInstance().font;
         boolean shadow = ctx.kind().textShadow();
-        int tx = x + PAD + ICON + 6, ty = y + PAD + (ICON - 8) / 2, right = x + w - PAD;
+        int tx = x + PAD + (hasIcon ? ICON + 6 : 0), ty = y + PAD + (ICON - 8) / 2, right = x + w - PAD;
         Component title = Component.literal(name).withStyle(ChatFormatting.BOLD);
         g.text(font, title, tx, ty, ctx.kind().textColor(TextRole.HEADING), shadow);
         int vx = tx + font.width(title) + 6;

@@ -29,7 +29,8 @@
   "custom": {
     "modhub": {
       "suite": "modhub_examples",
-      "suiteName": "Example Suite"
+      "suiteName": "Example Suite",
+      "suiteIcon": "assets/modhub_example_lumber/suite.png"
     }
   }
 }

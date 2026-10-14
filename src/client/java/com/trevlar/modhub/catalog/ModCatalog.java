@@ -88,13 +88,19 @@ public final class ModCatalog {
 
         List<ModInfo> mods = new ArrayList<>();
         Map<String, String> suiteNames = new HashMap<>();
+        Map<String, String[]> suiteIcons = new HashMap<>();   // suite id to {owner mod id, path}
         for (ModContainer c : FabricLoader.getInstance().getAllMods()) {
             ModMetadata m = c.getMetadata();
             String id = m.getId();
             CustomValue.CvObject hub = customObject(m, "modhub");
             String suite = string(hub, "suite");
             String suiteName = string(hub, "suiteName");
-            if (suite != null && suiteName != null) suiteNames.putIfAbsent(suite, suiteName);
+            // Members may each carry the suite's name and icon; when they disagree, the member with
+            // the alphabetically first mod id wins, so every install agrees whatever is installed.
+            String suiteIcon = string(hub, "suiteIcon");
+            if (suite != null && suiteName != null) suiteNames.merge(suite, id + "\u0000" + suiteName, ModCatalog::firstById);
+            if (suite != null && suiteIcon != null) suiteIcons.merge(suite, new String[]{id, suiteIcon},
+                    (a, b) -> a[0].compareTo(b[0]) <= 0 ? a : b);
             boolean mmScreen = modMenu && !settings.containsKey(id) && ModMenuBridge.hasScreen(id);
             mods.add(new ModInfo(id, m.getName(), m.getVersion().getFriendlyString(), m.getDescription(),
                     m.getAuthors().stream().map(Person::getName).toList(), links(m),
@@ -115,7 +121,11 @@ public final class ModCatalog {
         // its own, in the list or in Auxiliary as any mod would (Trev, 2026-10-14).
         suites.forEach((id, members) -> {
             if (members.size() > 1) {
-                top.add(new HubEntry.Suite(id, suiteNames.getOrDefault(id, humanize(id)), List.copyOf(members)));
+                String named = suiteNames.get(id);
+                String[] icon = suiteIcons.get(id);
+                if (icon != null) ModIcons.declareSuite(id, icon[0], icon[1]);
+                top.add(new HubEntry.Suite(id, named == null ? humanize(id) : named.substring(named.indexOf('\u0000') + 1),
+                        List.copyOf(members), icon != null ? "suite:" + id : members.getFirst().id()));
             } else if (members.getFirst().configurable()) {
                 top.add(new HubEntry.Single(members.getFirst()));
             } else {
@@ -175,6 +185,11 @@ public final class ModCatalog {
         if (o == null) return null;
         CustomValue v = o.get(key);
         return v != null && v.getType() == CustomValue.CvType.STRING ? v.getAsString() : null;
+    }
+
+    /** Of two "modid\0value" pairs, the one with the first mod id. */
+    private static String firstById(String a, String b) {
+        return a.substring(0, a.indexOf('\u0000')).compareTo(b.substring(0, b.indexOf('\u0000'))) <= 0 ? a : b;
     }
 
     /** {@code "my_suite"} to {@code "My suite"}, for a suite nobody named. */

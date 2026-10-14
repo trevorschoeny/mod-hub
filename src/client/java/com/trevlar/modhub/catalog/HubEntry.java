@@ -22,18 +22,25 @@ public sealed interface HubEntry {
         return mods().stream().anyMatch(ModInfo::configurable);
     }
 
-    /** The mod whose icon stands for it: itself, or its first member. Null when it has no mods. */
-    default ModInfo iconMod() {
-        return mods().isEmpty() ? null : mods().getFirst();
-    }
+    /**
+     * The key of the icon that stands for it, for {@code ModIcons.of}: a mod's own id, or a
+     * suite's. Null for Auxiliary, which has none.
+     */
+    @org.jetbrains.annotations.Nullable String iconKey();
 
     record Single(ModInfo mod) implements HubEntry {
         @Override public String id() { return "mod:" + mod.id(); }
         @Override public String name() { return mod.name(); }
+        @Override public String iconKey() { return mod.id(); }
         @Override public List<ModInfo> mods() { return List.of(mod); }
     }
 
-    record Suite(String suiteId, String name, List<ModInfo> mods) implements HubEntry {
+    /**
+     * A developer's suite. {@code iconKey} is {@code suite:<id>} when a member declares a
+     * {@code suiteIcon}, or else its first member's id, so a suite with no icon of its own wears
+     * its first mod's.
+     */
+    record Suite(String suiteId, String name, List<ModInfo> mods, String iconKey) implements HubEntry {
         @Override public String id() { return "suite:" + suiteId; }
     }
 
@@ -43,6 +50,7 @@ public sealed interface HubEntry {
         public static final String ID = "auxiliary";
         @Override public String id() { return ID; }
         @Override public String name() { return "Auxiliary"; }
+        @Override public String iconKey() { return null; }
         @Override public boolean configurable() { return false; }
     }
 }

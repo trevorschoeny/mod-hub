@@ -98,7 +98,6 @@ public final class ShortcutRow {
 
     private static ModIconButton.@Nullable Face face(@Nullable HubEntry e) {
         if (e == null) return null;
-        var mod = e.iconMod();
-        return mod == null ? null : new ModIconButton.Face(mod.id(), e.name());
+        return new ModIconButton.Face(e.iconKey(), e.name());
     }
 }
