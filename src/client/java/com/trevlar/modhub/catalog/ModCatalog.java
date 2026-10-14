@@ -46,7 +46,7 @@ public final class ModCatalog {
 
     private static @Nullable Built built;
 
-    /** The sorted mods and suites, before folders. */
+    /** The sorted mods and suites. */
     private record Built(List<HubEntry> topLevel, Map<String, HubEntry> byId, List<ModInfo> auxiliary,
                          List<ModInfo> all) {}
 

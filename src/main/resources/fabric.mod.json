@@ -25,6 +25,9 @@
     "minecraft": "~26.3",
     "menukit": ">=7.1.0 <8.0.0"
   },
+  "breaks": {
+    "keybindery": "<1.2.2"
+  },
   "suggests": {
     "modmenu": "*"
   }

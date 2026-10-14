@@ -72,7 +72,7 @@ public final class ModListScreen extends MKScreen {
     private final @Nullable Screen parent;
 
     private ModListScreen(@Nullable Screen parent, ScreenKind kind) {
-        super(Component.literal("Mods"), kind, List.of(main(kind), done(), Confirm.panel("modhub:list_confirm")));
+        super(Component.literal("Mods"), kind, List.of(main(kind), done()));
         this.parent = parent;
         if (kind == ScreenKind.CONTAINER) hideTitle();
         setReturnAction(() -> Minecraft.getInstance().gui.setScreen(parent));

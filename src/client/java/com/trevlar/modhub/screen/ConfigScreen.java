@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A mod's, suite's or folder's settings: Inventory Plus's settings menu made general. Sidebar tabs
+ * A mod's or suite's settings: Inventory Plus's settings menu made general. Sidebar tabs
  * on the left, one per mod with settings; the page on the right; Done at the bottom; Escape back to
  * wherever it was opened from (the mod list, the pause menu, a container).
  *

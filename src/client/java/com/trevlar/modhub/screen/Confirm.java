@@ -15,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * One modal "are you sure" for both of Mod Hub's screens (Reset to Defaults, Delete folder):
+ * One modal "are you sure" for the config screen (Reset to Defaults):
  * a title, one line of what it does, Cancel and Confirm; Escape cancels.
  *
  * <p>Hand-built, as Inventory Plus's is, because MenuKit's {@code ConfirmDialog} fixes its text
