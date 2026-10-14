@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "modhub_example_mining",
+  "version": "1.0.0",
+  "name": "Example Mining",
+  "icon": "assets/modhub_example_mining/icon.png",
+  "description": "A pretend mod in Mod Hub's dev runtime, here so the mod list and config screen have a suite to show. Never shipped.",
+  "authors": ["trevorschoeny"],
+  "contact": { "homepage": "https://example.com/mining" },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": { "modhub": ["com.trevlar.modhub.example.mining.MiningHub"] },
+  "depends": { "modhub": "*" },
+  "custom": { "modhub": { "suite": "modhub_examples", "suiteName": "Example Suite" } }
+}

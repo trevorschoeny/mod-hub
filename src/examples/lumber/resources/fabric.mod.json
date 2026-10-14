@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "modhub_example_lumber",
+  "version": "1.0.0",
+  "name": "Example Lumber",
+  "icon": "assets/modhub_example_lumber/icon.png",
+  "description": "A pretend mod in Mod Hub's dev runtime, here so the mod list and config screen have a suite to show. Never shipped.",
+  "authors": ["trevorschoeny"],
+  "contact": { "homepage": "https://example.com/lumber" },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": { "modhub": ["com.trevlar.modhub.example.lumber.LumberHub"] },
+  "depends": { "modhub": "*" },
+  "custom": { "modhub": { "suite": "modhub_examples", "suiteName": "Example Suite" } }
+}

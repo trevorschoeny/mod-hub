@@ -1,0 +1,11 @@
+{
+  "modhub.modhub_example_lumber.treeFelling": "Tree felling",
+  "modhub.modhub_example_lumber.treeFelling.desc": "Breaking the bottom log of a tree breaks the whole tree.",
+  "modhub.modhub_example_lumber.maxLogs": "Most logs per tree",
+  "modhub.modhub_example_lumber.maxLogs.desc": "Trees bigger than this are left standing.",
+  "modhub.modhub_example_lumber.leafDecay": "Leaf decay",
+  "modhub.modhub_example_lumber.leafDecay.off": "Off",
+  "modhub.modhub_example_lumber.leafDecay.normal": "Normal",
+  "modhub.modhub_example_lumber.leafDecay.fast": "Fast",
+  "modhub.modhub_example_lumber.replantSaplings": "Replant saplings"
+}

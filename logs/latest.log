@@ -1,0 +1,3 @@
+[11:57:00] [Test worker/ERROR]: Mod Hub: /var/folders/4k/dbyz5nxd62z9gz5mppm03bm00000gn/T/junit785458728815531168/config.json can't be read (com.google.gson.stream.MalformedJsonException: Expected ':' at line 1 column 8 path $.not
+See https://github.com/google/gson/blob/main/Troubleshooting.md#malformed-json); moved to /var/folders/4k/dbyz5nxd62z9gz5mppm03bm00000gn/T/junit785458728815531168/config.json.bak and using the defaults.
+[11:57:01] [Test worker/WARN]: Mod Hub: b in t has a value it can't use ("yes"); using the default.

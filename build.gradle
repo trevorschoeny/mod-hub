@@ -46,7 +46,13 @@ dependencies {
     localRuntime "com.terraformersmc:modmenu:21.0.0"
 
     compileOnly 'org.jetbrains:annotations:24.1.0'
+
+    // The settings file's self-check (src/test).
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
+test { useJUnitPlatform() }
 
 loom {
     // Anything that touches a screen lives in src/client. src/main runs on both sides, and the
