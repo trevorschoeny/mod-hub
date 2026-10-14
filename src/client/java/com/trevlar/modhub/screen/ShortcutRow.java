@@ -98,8 +98,6 @@ public final class ShortcutRow {
 
     private static ModIconButton.@Nullable Face face(@Nullable HubEntry e) {
         if (e == null) return null;
-        // A folder shows its own name's letters, not its first mod's icon: it's the player's.
-        if (e instanceof HubEntry.Folder f) return new ModIconButton.Face("", f.name());
         var mod = e.iconMod();
         return mod == null ? null : new ModIconButton.Face(mod.id(), e.name());
     }

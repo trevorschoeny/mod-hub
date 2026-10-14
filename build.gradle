@@ -26,10 +26,14 @@ java {
 repositories {
     maven { url 'https://maven.fabricmc.net/' }
     maven { url 'https://maven.terraformersmc.com/releases/' }
+    // Not for this mod: Keybindery (dev runtime only, below) depends on YACL, whose builds are
+    // only on Modrinth's Maven, so Gradle needs it to resolve Keybindery's runtime classpath.
+    maven { url 'https://api.modrinth.com/maven' }
 }
 
-// MenuKit's client source set must exist before this project reads it.
+// MenuKit's client source set must exist before this project reads it, and Keybindery's.
 evaluationDependsOn(':menukit')
+evaluationDependsOn(':keybindery')
 
 dependencies {
     // 26.x: the game is unobfuscated, so no mappings line and plain java configurations.
@@ -113,6 +117,13 @@ loom {
 dependencies {
     clientImplementation rootProject.project(':menukit').sourceSets.client.output
     clientCompileOnly "com.terraformersmc:modmenu:21.0.0"
+
+    // Keybindery: optional. The keys button opens its Key Binds screen filtered to a mod, through
+    // KeybinderyBridge behind isModLoaded. Compile-only (players needn't have it) until that call
+    // is in keybindery-api; in the dev runtime so the button can be tried.
+    clientCompileOnly rootProject.project(':keybindery').sourceSets.client.output
+    devRunRuntimeOnly project(':keybindery')
+    devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output
 }
 
 jar {

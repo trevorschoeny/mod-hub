@@ -34,13 +34,11 @@ import java.util.TreeMap;
  *       settings.</li>
  *   <li>A mod with no settings and no suite goes into Auxiliary: libraries, Fabric API's modules
  *       and player mods that simply have nothing to set alike.</li>
- *   <li>A player's folder takes whole entries out of the top level and holds them.</li>
- * </ol>
+ * * </ol>
  * Order: Mod Hub first, then the rest by name, then Auxiliary.
  *
  * <p><b>Built once per session</b>, on first use, after every mod's client init has run (Mod Menu
- * works out which mods have screens in its own). Folders aren't part of that: {@link #entries()}
- * applies them every call, since the player changes them while the list is open.
+ * works out which mods have screens in its own).
  */
 public final class ModCatalog {
 
@@ -54,24 +52,10 @@ public final class ModCatalog {
 
     private ModCatalog() {}
 
-    /** The sidebar, top to bottom: Mod Hub, the rest (folders applied) by name, Auxiliary last. */
+    /** The sidebar, top to bottom: Mod Hub, the rest by name, Auxiliary last. */
     public static List<HubEntry> entries() {
         Built b = built();
-        // Folders take their members out of the top level.
-        List<HubEntry> folders = new ArrayList<>();
-        java.util.Set<String> foldered = new java.util.HashSet<>();
-        for (HubState.FolderData f : HubState.folders()) {
-            List<HubEntry> members = new ArrayList<>();
-            for (String id : f.members) {
-                HubEntry e = b.byId().get(id);
-                if (e != null) members.add(e);   // a member not installed now stays in the file, unshown
-            }
-            foldered.addAll(f.members);
-            folders.add(new HubEntry.Folder(f.id, f.name, List.copyOf(members)));
-        }
-        List<HubEntry> out = new ArrayList<>();
-        for (HubEntry e : b.topLevel()) if (!foldered.contains(e.id())) out.add(e);
-        out.addAll(folders);
+        List<HubEntry> out = new ArrayList<>(b.topLevel());
         out.sort(Comparator.comparing((HubEntry e) -> !e.id().equals("mod:modhub"))
                 .thenComparing(e -> e.name().toLowerCase(java.util.Locale.ROOT)));
         out.add(new HubEntry.Auxiliary(b.auxiliary()));
@@ -79,14 +63,13 @@ public final class ModCatalog {
     }
 
     /**
-     * The entry with {@code id}, or null when it isn't installed: a sidebar entry (folders
-     * included), or any single mod by {@code mod:<id>}, so a mod inside a suite or folder can have
-     * its own shortcut and key too.
+     * The entry with {@code id}, or null when it isn't installed: a sidebar entry, or any single
+     * mod by {@code mod:<id>}, so a mod inside a suite can have its own shortcut and key too.
      */
     public static @Nullable HubEntry find(String id) {
-        for (HubEntry e : entries()) if (e.id().equals(id)) return e;
         HubEntry top = built().byId().get(id);
         if (top != null) return top;
+        if (id.equals(HubEntry.Auxiliary.ID)) return new HubEntry.Auxiliary(built().auxiliary());
         if (id.startsWith("mod:")) {
             String modId = id.substring(4);
             for (ModInfo m : built().all()) if (m.id().equals(modId)) return new HubEntry.Single(m);

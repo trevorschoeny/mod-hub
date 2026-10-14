@@ -21,7 +21,11 @@ final class NameBar {
     private NameBar() {}
 
     static PanelElement of(String name) {
-        return Flow.builder().at(0, 0).gap(0, 0)
+        return of(name, 0);
+    }
+
+    static PanelElement of(String name, int y) {
+        return Flow.builder().at(0, y).gap(0, 0)
                 .add(Flow.spacer())
                 .add(TextLabel.builder()
                         .text(Component.literal(name).withStyle(ChatFormatting.BOLD))

@@ -17,12 +17,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Everything the player sets about the mod list itself, as opposed to inside a mod: which entries
- * have a shortcut and where, the shortcut order, each entry's key, and the player's folders. Kept
- * in {@code config/modhub/list.json}, apart from Mod Hub's own settings ({@code config.json}).
+ * have a shortcut and where, the shortcut order, and each entry's key. Kept in
+ * {@code config/modhub/list.json}, apart from Mod Hub's own settings ({@code config.json}).
  *
  * <p>Entries are named by {@link HubEntry#id()}. A shortcut or key for a mod that isn't installed
  * any more is kept, not dropped, so it comes back if the mod does.
@@ -41,13 +40,6 @@ public final class HubState {
         boolean inventory;
     }
 
-    /** A folder as stored: read by the catalog, changed only through the methods below. */
-    public static final class FolderData {
-        public String id;
-        public String name;
-        public List<String> members = new ArrayList<>();
-    }
-
     private static final class Data {
         int version = 1;
         Map<String, Shortcut> shortcuts = new LinkedHashMap<>();
@@ -55,8 +47,6 @@ public final class HubState {
         List<String> order = new ArrayList<>();
         /** Entry id to GLFW key code. */
         Map<String, Integer> keys = new LinkedHashMap<>();
-        List<FolderData> folders = new ArrayList<>();
-        int nextFolder = 1;
     }
 
     private static Data data = load();
@@ -90,7 +80,10 @@ public final class HubState {
         return List.copyOf(data.order);
     }
 
-    /** Moves {@code entry} one place left ({@code -1}) or right ({@code +1}) in the shortcut order. */
+    /**
+     * Moves {@code entry} one place left ({@code -1}) or right ({@code +1}) in the shortcut order.
+     * Nothing calls it yet: Trev is deciding how reordering should look (2026-10-14).
+     */
     public static void move(String entry, int delta) {
         int i = data.order.indexOf(entry);
         int j = i + delta;
@@ -133,54 +126,6 @@ public final class HubState {
 
     public static Map<String, Integer> keys() {
         return Map.copyOf(data.keys);
-    }
-
-    // Folders
-
-    /** Folder ids and names, in the order they were made. */
-    public static List<FolderData> folders() {
-        return List.copyOf(data.folders);
-    }
-
-    /** Makes an empty folder ("New folder 2") and returns its entry id. */
-    public static String createFolder() {
-        FolderData f = new FolderData();
-        f.id = "folder:" + data.nextFolder;
-        f.name = data.nextFolder == 1 ? "New folder" : "New folder " + data.nextFolder;
-        data.nextFolder++;
-        data.folders.add(f);
-        save();
-        return f.id;
-    }
-
-    public static void renameFolder(String folderId, String name) {
-        String trimmed = name.strip();
-        if (trimmed.isEmpty()) return;
-        folder(folderId).ifPresent(f -> f.name = trimmed);
-        save();
-    }
-
-    /** Deletes a folder. Its members go back to the top level; their own settings are untouched. */
-    public static void deleteFolder(String folderId) {
-        data.folders.removeIf(f -> f.id.equals(folderId));
-        save();
-    }
-
-    /** The folder {@code entry} is in, or null at the top level. An entry is in one folder at most. */
-    public static @Nullable String folderOf(String entry) {
-        for (FolderData f : data.folders) if (f.members.contains(entry)) return f.id;
-        return null;
-    }
-
-    /** Moves {@code entry} into {@code folderId}, or back to the top level with null. */
-    public static void setFolder(String entry, @Nullable String folderId) {
-        for (FolderData f : data.folders) f.members.remove(entry);
-        if (folderId != null) folder(folderId).ifPresent(f -> f.members.add(entry));
-        save();
-    }
-
-    private static Optional<FolderData> folder(String id) {
-        return data.folders.stream().filter(f -> f.id.equals(id)).findFirst();
     }
 
     // The file

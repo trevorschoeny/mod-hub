@@ -18,6 +18,7 @@ import com.trevlar.menukit.api.panel.ScreenKind;
 import com.trevlar.modhub.ModHubSettings;
 import com.trevlar.modhub.api.Setting;
 import com.trevlar.modhub.catalog.HubEntry;
+import com.trevlar.modhub.catalog.ModCatalog;
 import com.trevlar.modhub.catalog.ModInfo;
 import com.trevlar.modhub.catalog.ModMenuBridge;
 
@@ -49,6 +50,9 @@ public final class ConfigScreen extends MKScreen {
     private static final Map<String, String> SELECTED = new HashMap<>();
     private static final Map<String, Double> SCROLL = new HashMap<>();
 
+    /** How far the menu starts below the top corners' buttons (Trev, 2026-10-14: 6 or 7 px). */
+    private static final int TOP_ROOM = 7;
+
     private ConfigScreen(HubEntry entry, @Nullable Screen parent, ScreenKind kind) {
         super(Component.literal(entry.name()), kind,
                 List.of(main(entry, kind), done(), back(), modHub(parent), Confirm.panel("modhub:config_confirm")));
@@ -58,11 +62,20 @@ public final class ConfigScreen extends MKScreen {
     }
 
     /**
-     * Opens {@code entry}'s settings over {@code parent}. A lone mod whose screen is Mod Menu's
-     * opens that screen directly, since a page with one button would only be in the way.
+     * Opens {@code entry}'s settings over {@code parent}. A mod in a suite opens the suite's screen
+     * on that mod's tab. A lone mod whose screen is Mod Menu's opens that screen directly, since a
+     * page with one button would only be in the way.
      */
     public static void open(HubEntry entry, @Nullable Screen parent) {
         Minecraft mc = Minecraft.getInstance();
+        // A mod in a suite opens in its suite's screen, on its own tab, so the suite stays together.
+        if (entry instanceof HubEntry.Single one && one.mod().suiteId() != null) {
+            HubEntry suite = ModCatalog.find("suite:" + one.mod().suiteId());
+            if (suite != null) {
+                SELECTED.put(suite.id(), one.mod().id());
+                entry = suite;
+            }
+        }
         List<ModInfo> mods = entry.mods().stream().filter(ModInfo::configurable).toList();
         if (mods.size() == 1 && mods.getFirst().settings() == null) {
             Screen own = ModMenuBridge.screen(mods.getFirst().id(), parent);
@@ -85,11 +98,13 @@ public final class ConfigScreen extends MKScreen {
             if (!mod.configurable()) continue;
             tabs.tab(Tabs.tab(mod.id()).label(Component.literal(mod.name())).body(() -> page(mod)));
         }
-        if (!options) tabs.at(0, NameBar.HEIGHT + NameBar.GAP);
+        // Back and Mod Hub sit in the top corners; everything here starts TOP_ROOM lower so they
+        // never overlap the sidebar or the name bar.
+        tabs.at(0, TOP_ROOM + (options ? 0 : NameBar.HEIGHT + NameBar.GAP));
         Panel.Builder panel = Panel.builder("modhub:config")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
                 .position(PanelPosition.main());
-        if (!options) panel.add(NameBar.of(entry.name()));
+        if (!options) panel.add(NameBar.of(entry.name(), TOP_ROOM));
         return panel.add(tabs.build()).build();
     }
 

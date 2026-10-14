@@ -2,6 +2,7 @@ package com.trevlar.modhub.element;
 
 import com.trevlar.menukit.api.element.AbstractPanelElement;
 import com.trevlar.menukit.api.element.RenderContext;
+import com.trevlar.menukit.api.element.Section;
 import com.trevlar.menukit.api.element.TextRole;
 import com.trevlar.menukit.api.panel.ScreenKind;
 
@@ -10,48 +11,70 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.util.function.BooleanSupplier;
+import java.util.function.IntSupplier;
 
 /**
- * One mod (or a suite inside a folder) as a box on a suite's, folder's or Auxiliary's page: a frame
- * the width of the page, the icon at the left, the name in bold with its version after it, and one
- * line of description, cut short with "..." when it runs out of width. Render only: the page lays
- * the mod's controls (configs, key, shortcut) over the box's lower half, at {@link #CONTROLS_Y}.
+ * One mod as a box on a suite's or Auxiliary's page: a frame the width of the page with the mod's
+ * icon, its name in bold and its version. The page lays the rest over it, inside the frame: the
+ * Description section ({@link #SECTION_Y}) and the controls row ({@link #controlsY}).
  *
- * <p>The height is fixed so the rows after it never move, which is why the description is one
- * line. ponytail: Mod Hub's own box; MenuKit has no public grouping box. Ask for one if a second
+ * <p>The box grows with its Description: {@code extra} is the section's open height, read every
+ * frame, and the panel's reflow pushes everything after the section down by the same amount, so
+ * the next box moves with this one's bottom edge.
+ *
+ * <p>ponytail: Mod Hub's own box; MenuKit has no public grouping box. Ask for one if a second
  * mod wants it.
  */
 public final class ModCard extends AbstractPanelElement {
 
-    /** Room for the icon and two lines, then the controls row, with padding around both. */
-    public static final int HEIGHT_WITH_CONTROLS = 52;
-    public static final int HEIGHT_PLAIN = 30;
-    /** Where the controls row starts, from the card's top, and from its left (in line with the text). */
-    public static final int CONTROLS_Y = 30;
-    public static final int TEXT_X = 30;
+    /** Inside the frame: its padding, and the icon's size. */
+    public static final int PAD = 4;
+    private static final int ICON = 16;
 
-    private static final int PAD = 4;
-    private static final int ICON = 20;
+    /** Where the Description section sits, from the card's top. */
+    public static final int SECTION_Y = PAD + ICON + 4;
+
+    private static final int CONTROLS_HEIGHT = 16;
 
     private final String modId;
     private final String name;
     private final String version;
-    private final String description;
+    private final int baseHeight;
+    private final IntSupplier extra;
     private final BooleanSupplier visible;
 
-    public ModCard(int y, boolean withControls, String modId, String name, String version, String description,
-                   BooleanSupplier visible) {
+    /**
+     * @param description whether there's a Description section (a mod with none has no row for it)
+     * @param controls    whether there's a controls row (a mod with no settings has none)
+     * @param extra       how much taller the Description section is than its header right now
+     */
+    public ModCard(int y, String modId, String name, String version, boolean description, boolean controls,
+                   IntSupplier extra, BooleanSupplier visible) {
         this.childX = 0;
         this.childY = y;
-        this.height = withControls ? HEIGHT_WITH_CONTROLS : HEIGHT_PLAIN;
         this.modId = modId;
         this.name = name;
         this.version = version;
-        this.description = description;
+        this.baseHeight = height(description, controls);
+        this.height = baseHeight;
+        this.extra = extra;
         this.visible = visible;
     }
 
+    /** Where the controls row sits, from the card's top, with its section closed. */
+    public static int controlsY(boolean description) {
+        return description ? SECTION_Y + Section.HEADER_HEIGHT + 4 : SECTION_Y;
+    }
+
+    /** The card's height with its section closed: what the page leaves for it. */
+    public static int height(boolean description, boolean controls) {
+        if (controls) return controlsY(description) + CONTROLS_HEIGHT + PAD;
+        return description ? SECTION_Y + Section.HEADER_HEIGHT + PAD : PAD + ICON + PAD;
+    }
+
     @Override public boolean isVisible() { return visible.getAsBoolean(); }
+
+    @Override public int getHeight() { return baseHeight + extra.getAsInt(); }
 
     /** As wide as the page. */
     @Override public void fillWidth(int width) { this.width = width; }
@@ -60,7 +83,7 @@ public final class ModCard extends AbstractPanelElement {
 
     @Override
     public void render(RenderContext ctx) {
-        int x = ctx.originX() + childX, y = ctx.originY() + childY, w = width, h = height;
+        int x = ctx.originX() + childX, y = ctx.originY() + childY, w = width, h = getHeight();
         var g = ctx.graphics();
         // A quiet frame on both looks: darker than the page on the options look, a grey line on
         // the inventory's light panel.
@@ -68,28 +91,16 @@ public final class ModCard extends AbstractPanelElement {
         g.fill(x, y, x + w, y + h, options ? 0x40000000 : 0x14000000);
         g.outline(x, y, w, h, options ? 0x30FFFFFF : 0xFF8B8B8B);
 
-        ModIconImage.draw(ctx, modId, name, x + PAD + 1, y + PAD + 1, ICON);
+        ModIconImage.draw(ctx, modId, name, x + PAD, y + PAD, ICON);
 
         var font = Minecraft.getInstance().font;
         boolean shadow = ctx.kind().textShadow();
-        int tx = x + TEXT_X, right = x + w - PAD;
+        int tx = x + PAD + ICON + 6, ty = y + PAD + (ICON - 8) / 2, right = x + w - PAD;
         Component title = Component.literal(name).withStyle(ChatFormatting.BOLD);
-        g.text(font, title, tx, y + PAD + 1, ctx.kind().textColor(TextRole.HEADING), shadow);
+        g.text(font, title, tx, ty, ctx.kind().textColor(TextRole.HEADING), shadow);
         int vx = tx + font.width(title) + 6;
         if (!version.isEmpty() && vx < right) {
-            g.text(font, font.plainSubstrByWidth(version, right - vx), vx, y + PAD + 1,
-                    ctx.kind().textColor(TextRole.MUTED), shadow);
+            g.text(font, font.plainSubstrByWidth(version, right - vx), vx, ty, ctx.kind().textColor(TextRole.MUTED), shadow);
         }
-        if (!description.isBlank()) {
-            g.text(font, oneLine(font, description, right - tx), tx, y + PAD + 13,
-                    ctx.kind().textColor(TextRole.MUTED), shadow);
-        }
-    }
-
-    /** {@code text} cut to {@code width}, ending in "..." when it was cut. */
-    private static String oneLine(net.minecraft.client.gui.Font font, String text, int width) {
-        String flat = text.replace('\n', ' ');
-        if (font.width(flat) <= width) return flat;
-        return font.plainSubstrByWidth(flat, Math.max(0, width - font.width("..."))).stripTrailing() + "...";
     }
 }
