@@ -199,6 +199,10 @@ dependencies {
     devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output
 }
 
+// The undo history's check (src/test, screen/HistoryTest) reads client classes.
+sourceSets.test.compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+
 // The stand-in's own compile classpath is the client's, minus Mod Menu itself.
 sourceSets.modmenuApi.compileClasspath += sourceSets.client.compileClasspath.filter { !it.name.startsWith('modmenu') }
 

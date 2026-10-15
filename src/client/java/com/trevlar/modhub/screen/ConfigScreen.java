@@ -20,7 +20,12 @@ import com.trevlar.modhub.catalog.ModMenuBridge;
 import com.trevlar.modhub.page.ConfigPage;
 import com.trevlar.modhub.page.Pages;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -51,9 +56,16 @@ public final class ConfigScreen extends MKScreen {
     /** How far the menu starts below the name bar, clear of the top corners' buttons. */
     private static final int TOP_ROOM = 9;
 
-    private ConfigScreen(HubEntry entry, @Nullable Screen parent, ScreenKind kind) {
+    private static final Identifier UNDO_ICON = Identifier.fromNamespaceAndPath("modhub", "icon/undo");
+    private static final Identifier REDO_ICON = Identifier.fromNamespaceAndPath("modhub", "icon/redo");
+
+    /** The open tab's undo and redo. */
+    private final History history;
+
+    private ConfigScreen(HubEntry entry, @Nullable Screen parent, ScreenKind kind, History history) {
         super(Component.literal(entry.name()), kind,
-                List.of(main(entry, kind), done(), back(), modHub(parent), Confirm.panel("modhub:config_confirm")));
+                List.of(main(entry, kind, history), done(history), back(), modHub(parent), Confirm.panel("modhub:config_confirm")));
+        this.history = history;
         // Both looks name the screen in a bar at twice size across the top, so the vanilla title
         // band goes.
         hideTitle();
@@ -87,16 +99,20 @@ public final class ConfigScreen extends MKScreen {
             }
         }
         ScreenKind kind = ModHubSettings.OPTIONS_LOOK.get() ? ScreenKind.OPTIONS : ScreenKind.CONTAINER;
-        mc.gui.setScreen(new ConfigScreen(entry, parent, kind));
+        mc.gui.setScreen(new ConfigScreen(entry, parent, kind, new History()));
     }
 
-    private static Panel main(HubEntry entry, ScreenKind kind) {
+    private static Panel main(HubEntry entry, ScreenKind kind, History history) {
         boolean options = kind == ScreenKind.OPTIONS;
         List<ModInfo> configurable = entry.mods().stream().filter(ModInfo::configurable).toList();
         int top = NameBar.HEIGHT + TOP_ROOM;
         Tabs.Builder tabs = Tabs.builder()
                 .mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT)
-                .state(() -> SELECTED.get(entry.id()), id -> SELECTED.put(entry.id(), id))
+                // The history belongs to the open tab: another tab starts with none.
+                .state(() -> SELECTED.get(entry.id()), id -> {
+                    if (!id.equals(SELECTED.get(entry.id()))) history.clear();
+                    SELECTED.put(entry.id(), id);
+                })
                 .bodyScroll(id -> SCROLL.get(entry.id() + "/" + id), (id, v) -> SCROLL.put(entry.id() + "/" + id, v));
         if (configurable.size() == 1) {
             ModInfo mod = configurable.getFirst();
@@ -108,18 +124,18 @@ public final class ConfigScreen extends MKScreen {
                 return Panel.builder("modhub:config")
                         .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
                         .position(PanelPosition.main())
-                        .elements(page(mod, top))   // replaces the list, so first
+                        .elements(page(mod, top, history))   // replaces the list, so first
                         .add(NameBar.of(entry.name(), 0))
                         .build();
             }
             for (int i = 0; i < page.categories().size(); i++) {
                 ConfigPage.Category c = page.categories().get(i);
                 Component label = c.name() != null ? c.name() : Component.literal(mod.name());
-                tabs.tab(Tabs.tab("category" + i).label(label).body(() -> page(mod, page, List.of(c), false, 0)));
+                tabs.tab(Tabs.tab("category" + i).label(label).body(() -> page(mod, page, List.of(c), false, 0, history)));
             }
         } else {
             for (ModInfo mod : configurable) {
-                tabs.tab(Tabs.tab(mod.id()).label(Component.literal(mod.name())).body(() -> page(mod, 0)));
+                tabs.tab(Tabs.tab(mod.id()).label(Component.literal(mod.name())).body(() -> page(mod, 0, history)));
             }
         }
         // The name bar across the top, between Back and Mod Hub; the tabs start under it.
@@ -158,14 +174,36 @@ public final class ConfigScreen extends MKScreen {
                 .build();
     }
 
-    /** Done at the bottom centre, as every Options screen ends. Done and Escape agree. */
-    private static Panel done() {
+    /**
+     * Done at the bottom centre, as every Options screen ends, with Undo to its left and Redo to its
+     * right, each shown only when there's a step to take. Their places are kept while hidden, so
+     * Done never moves. Done and Escape agree.
+     */
+    private static Panel done(History history) {
         return Panel.builder("modhub:config_done")
                 .style(PanelStyle.NONE)
                 .position(PanelPosition.region(OutsideRegion.BOTTOM_CENTER))
-                .add(Button.builder().label(CommonComponents.GUI_DONE).size(200, 20)
+                .add(Button.builder().at(0, 0).icon(UNDO_ICON).size(20, 20).tooltip(Component.literal("Undo"))
+                        .visibleWhen(history::canUndo).onClick(history::undo).build())
+                .add(Button.builder().at(24, 0).label(CommonComponents.GUI_DONE).size(200, 20)
                         .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
+                .add(Button.builder().at(228, 0).icon(REDO_ICON).size(20, 20).tooltip(Component.literal("Redo"))
+                        .visibleWhen(history::canRedo).onClick(history::redo).build())
                 .build();
+    }
+
+    /**
+     * Ctrl+Z undoes and Ctrl+Shift+Z redoes (Cmd on a Mac), built in. Not while a text field has
+     * focus: there the keys are the field's own.
+     */
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (event.key() == InputConstants.KEY_Z && event.hasControlDownWithQuirk() && !(getFocused() instanceof EditBox)) {
+            if (event.hasShiftDown()) history.redo();
+            else history.undo();
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     // One mod's page
@@ -175,26 +213,27 @@ public final class ConfigScreen extends MKScreen {
     // the page's rows (PageView).
 
     /** One mod's page, every category on it, its rows starting at {@code top}. */
-    private static List<PanelElement> page(ModInfo mod, int top) {
+    private static List<PanelElement> page(ModInfo mod, int top, History history) {
         ConfigPage page = Pages.of(mod);
-        return page == null ? openOwnScreen(mod, top) : page(mod, page, page.categories(), true, top);
+        return page == null ? openOwnScreen(mod, top) : page(mod, page, page.categories(), true, top, history);
     }
 
     /** {@code mod}'s page showing {@code categories}; {@code headed} names each one above its rows. */
     private static List<PanelElement> page(ModInfo mod, ConfigPage page, List<ConfigPage.Category> categories,
-                                           boolean headed, int top) {
+                                           boolean headed, int top, History history) {
         Body body = frame(mod, top);
         if (page.resetAll() != null) {
             body.row((y, v) -> List.of(Flow.builder().at(0, y).gap(10, 4)
                     .add(Button.builder().size(0, 16).label(Component.literal("Reset to Defaults"))
                             .onClick(() -> Confirm.ask("Reset " + mod.name() + " to defaults?",
                                     "Every setting on this tab goes back to how a fresh install has it.",
-                                    page.resetAll()))
+                                    // One step for the history, however many settings it changed.
+                                    () -> history.asOneStep(History.values(page.rows().toList()), page.resetAll())))
                             .build())
                     .build()), Body.CONTROL_ROW);
         }
         body.rule();
-        PageView.draw(body, categories, headed);
+        PageView.draw(body, categories, headed, history);
         return body.build();
     }
 

@@ -42,15 +42,15 @@ final class PageView {
      * Every category's blocks, in order. {@code headed} gives each named category a bold heading;
      * off, when each category is its own tab and the tab already names it.
      */
-    static void draw(Body body, List<ConfigPage.Category> categories, boolean headed) {
+    static void draw(Body body, List<ConfigPage.Category> categories, boolean headed, History history) {
         for (ConfigPage.Category c : categories) {
             if (headed && c.name() != null) {
                 body.gap(4).text(c.name().copy().withStyle(ChatFormatting.BOLD), TextRole.HEADING);
             }
             for (ConfigPage.Block b : c.blocks()) {
                 switch (b) {
-                    case ConfigPage.Row r -> row(body, r);
-                    case ConfigPage.Group g -> group(body, g);
+                    case ConfigPage.Row r -> row(body, r, history);
+                    case ConfigPage.Group g -> group(body, g, history);
                 }
             }
         }
@@ -60,19 +60,19 @@ final class PageView {
      * A group as a MenuKit section: a header that opens and closes its rows. Laid out as if closed;
      * open, the section pushes everything below it down by its own content.
      */
-    private static void group(Body body, ConfigPage.Group g) {
+    private static void group(Body body, ConfigPage.Group g, History history) {
         Body inner = new Body();
-        for (ConfigPage.Row r : g.rows()) row(inner, r);
+        for (ConfigPage.Row r : g.rows()) row(inner, r, history);
         body.row((y, v) -> {
             Section.Builder s = Section.builder(g.name()).open(g.startOpen()).content(inner.build());
             return List.of(s.at(0, y).visibleWhen(v).build());
         }, Section.HEADER_HEIGHT + Body.GAP);
     }
 
-    private static void row(Body body, ConfigPage.Row r) {
+    private static void row(Body body, ConfigPage.Row r, History history) {
         Component name = r.name();
         Component tip = r.description();
-        switch (r.control()) {
+        switch (watched(r.control(), history)) {
             case Control.Toggle t -> body.row((y, v) -> {
                 Checkbox.Builder c = Checkbox.builder().at(0, y).label(name)
                         .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value()));
@@ -114,6 +114,37 @@ final class PageView {
             case Control.Unsupported u -> body.text(Component.literal(name.getString() + " (" + u.what() + ")"), TextRole.MUTED);
         }
         if (r.note() != null) body.text(r.note(), TextRole.MUTED);
+    }
+
+    /** The control with its value recorded by the tab's undo history; the same control otherwise. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Control watched(Control c, History h) {
+        return switch (c) {
+            case Control.Toggle t -> new Control.Toggle(h.watch(t.value()));
+            case Control.IntSlider s -> new Control.IntSlider(h.watch(s.value()), s.min(), s.max(), s.step(), s.format());
+            case Control.DecimalSlider s -> new Control.DecimalSlider(h.watch(s.value()), s.min(), s.max(), s.step(), s.format());
+            case Control.NumberField f -> new Control.NumberField(h.watch(f.value()), f.parse(), f.format());
+            case Control.Choice ch -> new Control.Choice(h.watch(ch.value()), ch.options(), ch.label());
+            case Control.Text t -> new Control.Text(h.watch(t.value()), t.accepts());
+            case Control.Action a -> a;
+            case Control.Label l -> l;
+            case Control.Unsupported u -> u;
+        };
+    }
+
+    /** The value a control edits, or null for one that edits nothing. */
+    static @Nullable Value<?> valueOf(Control c) {
+        return switch (c) {
+            case Control.Toggle t -> t.value();
+            case Control.IntSlider s -> s.value();
+            case Control.DecimalSlider s -> s.value();
+            case Control.NumberField<?> f -> f.value();
+            case Control.Choice<?> ch -> ch.value();
+            case Control.Text t -> t.value();
+            case Control.Action a -> null;
+            case Control.Label l -> null;
+            case Control.Unsupported u -> null;
+        };
     }
 
     private static <T> void choice(Body body, Component name, @Nullable Component tip, Control.Choice<T> c) {
