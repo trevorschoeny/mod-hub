@@ -62,7 +62,7 @@ public final class ConfigScreen extends MKScreen {
 
     /**
      * Opens {@code entry}'s settings over {@code parent}. A mod in a suite opens the suite's screen
-     * on that mod's tab. A lone mod whose screen is Mod Menu's opens that screen directly, since a
+     * on that mod's tab. A lone mod Mod Hub can't draw (see Pages) opens its own screen directly, since a
      * page with one button would only be in the way.
      */
     public static void open(HubEntry entry, @Nullable Screen parent) {
@@ -75,8 +75,11 @@ public final class ConfigScreen extends MKScreen {
                 entry = suite;
             }
         }
+        Pages.forget();
         List<ModInfo> mods = entry.mods().stream().filter(ModInfo::configurable).toList();
-        if (mods.size() == 1 && mods.getFirst().settings() == null) {
+        // A lone mod Mod Hub can't draw opens its own screen straight away, rather than a page with
+        // one button on it.
+        if (mods.size() == 1 && Pages.of(mods.getFirst()) == null) {
             Screen own = ModMenuBridge.screen(mods.getFirst().id(), parent);
             if (own != null) {
                 mc.gui.setScreen(own);

@@ -93,10 +93,18 @@ sourceSets {
         resources.srcDirs = ['src/prodcheck/resources']
         compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
     }
+    // One adapter per config library (src/compat/<library>), each compiled against a pinned
+    // version of its library and nothing else of the others', so only that adapter's classes can
+    // reach the library. Shipped inside Mod Hub's own jar; each loads only when its library is
+    // installed and in the range it was checked against (page/Pages, page/Adapter).
+    compatYacl {
+        java.srcDirs = ['src/compat/yacl/java']
+        compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
+    }
     // No sources: the classpath the dev client runs on, Mod Hub plus both examples.
     devRun {
         runtimeClasspath += client.runtimeClasspath + main.output + client.output +
-                exampleLumber.output + exampleMining.output
+                compatYacl.output + exampleLumber.output + exampleMining.output
     }
 }
 
@@ -105,6 +113,7 @@ loom {
         'modhub' {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
+            sourceSet sourceSets.compatYacl
         }
         'modhub_example_lumber' { sourceSet sourceSets.exampleLumber }
         'modhub_example_mining' { sourceSet sourceSets.exampleMining }
@@ -136,6 +145,11 @@ dependencies {
     // keybindery-api (1.2.2: openModKeybinds, hasKeybinds), behind isModLoaded. Compile-only, so
     // players needn't have it; Keybindery in the dev runtime so the button can be tried.
     clientCompileOnly project(':keybindery-api')
+
+    // The adapters' libraries, at the versions each adapter is built against (compile only: a
+    // player brings their own). In the dev runtime too, for the example mods that use them.
+    compatYaclCompileOnly "maven.modrinth:yacl:3.9.7+26.3-fabric"
+    devRunRuntimeOnly "maven.modrinth:yacl:3.9.7+26.3-fabric"
     devRunRuntimeOnly project(':keybindery')
     devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output
 }
@@ -155,6 +169,7 @@ def modmenuApiJar = tasks.register('modmenuApiJar', Jar) {
 jar {
     from('LICENSE') { rename { "${it}_${project.name}" } }
     from(modmenuApiJar) { into 'META-INF/jars' }
+    from sourceSets.compatYacl.output
 }
 
 processModmenuApiResources {

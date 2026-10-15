@@ -15,6 +15,12 @@ public final class ModHubSettings implements ModHubEntry {
     /** Mod Hub's screens in the options look (the default) or the inventory look. */
     public static final Setting<Boolean> OPTIONS_LOOK = S.bool("optionsLook", true);
 
+    /**
+     * Mods built on another config library (YACL, Cloth Config, MidnightLib, Forge Config API Port)
+     * open as Mod Hub pages. Off, each opens its own screen, as from Mod Menu.
+     */
+    public static final Setting<Boolean> ADAPT_OTHER_LIBRARIES = S.bool("adaptOtherLibraries", true);
+
     @Override
     public Settings settings() {
         return S;

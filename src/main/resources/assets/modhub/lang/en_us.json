@@ -1,4 +1,6 @@
 {
   "modhub.modhub.optionsLook": "Options look",
-  "modhub.modhub.optionsLook.desc": "Mod Hub's screens look like the Options screens. Off, they use the grey inventory look."
+  "modhub.modhub.optionsLook.desc": "Mod Hub's screens look like the Options screens. Off, they use the grey inventory look.",
+  "modhub.modhub.adaptOtherLibraries": "Other mods' settings in Mod Hub's style",
+  "modhub.modhub.adaptOtherLibraries.desc": "Mods whose settings are built with YACL, Cloth Config, MidnightLib or Forge Config API Port open as Mod Hub pages. Off, each opens its own settings screen."
 }

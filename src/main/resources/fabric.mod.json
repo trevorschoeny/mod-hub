@@ -5,7 +5,9 @@
   "name": "Mod Hub",
   "icon": "assets/modhub/icon.png",
   "description": "A mod list and a settings home in one: find every installed mod, open its settings, and pin shortcuts to your favourites.",
-  "authors": ["trevorschoeny"],
+  "authors": [
+    "trevorschoeny"
+  ],
   "contact": {
     "homepage": "https://modrinth.com/mod/mod-hub",
     "sources": "https://github.com/trevorschoeny/mod-hub",
@@ -14,13 +16,26 @@
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
-    "main": ["com.trevlar.modhub.ModHub"],
-    "client": ["com.trevlar.modhub.ModHubClient"],
-    "modhub": ["com.trevlar.modhub.ModHubSettings"]
+    "main": [
+      "com.trevlar.modhub.ModHub"
+    ],
+    "client": [
+      "com.trevlar.modhub.ModHubClient"
+    ],
+    "modhub": [
+      "com.trevlar.modhub.ModHubSettings"
+    ],
+    "modhub:adapter": [
+      "com.trevlar.modhub.compat.yacl.YaclAdapter"
+    ]
   },
-  "mixins": ["modhub.mixins.json"],
+  "mixins": [
+    "modhub.mixins.json"
+  ],
   "jars": [
-    { "file": "META-INF/jars/modhub-modmenu-api.jar" }
+    {
+      "file": "META-INF/jars/modhub-modmenu-api.jar"
+    }
   ],
   "depends": {
     "fabricloader": ">=0.15.0",
