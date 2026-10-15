@@ -29,7 +29,12 @@ ext.compat = [
         // Forge Config API Port 26.3.1 (Modrinth version id), and the NightConfig it nests.
         fcap       : ['maven.modrinth:forge-config-api-port:JpKvrr9J', 'com.electronwill.night-config:core:3.8.4',
                       'com.electronwill.night-config:toml:3.8.4'],
+        // owo-lib had no 26.3 build yet: compiled against 26.2's, the adapter switched off, and kept
+        // out of the dev runtime (a 26.2 mod won't load on 26.3). See compat/owo.
+        owo        : ['io.wispforest:owo-lib:0.13.1+26.2', 'io.wispforest:endec:0.1.12'],
 ]
+// Adapters whose library can't run in the dev client yet (no build for this Minecraft).
+ext.compatCompileOnly = ['owo']
 
 java {
     // Minecraft 26.x runs on Java 25.
@@ -43,6 +48,7 @@ repositories {
     // Not for this mod: Keybindery (dev runtime only, below) depends on YACL, whose builds are
     // only on this Maven repository, so Gradle needs it to resolve Keybindery's runtime classpath.
     maven { url 'https://api.modrinth.com/maven' }
+    maven { url 'https://maven.wispforest.io/releases/' }
     // NightConfig, which Forge Config API Port nests, for its adapter's compile classpath.
     mavenCentral()
 }
@@ -118,7 +124,7 @@ sourceSets {
             java.srcDirs = ["src/compat/${name}/java"]
             compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
         }
-        create("example${name.capitalize()}") {
+        if (file("src/examples/${name}").exists()) create("example${name.capitalize()}") {
             java.srcDirs = ["src/examples/${name}/java"]
             resources.srcDirs = ["src/examples/${name}/resources"]
             compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
@@ -129,7 +135,8 @@ sourceSets {
         runtimeClasspath += client.runtimeClasspath + main.output + client.output +
                 exampleLumber.output + exampleMining.output
         compat.each { name, library ->
-            runtimeClasspath += sourceSets["compat${name.capitalize()}"].output + sourceSets["example${name.capitalize()}"].output
+            runtimeClasspath += sourceSets["compat${name.capitalize()}"].output
+            if (sourceSets.findByName("example${name.capitalize()}")) runtimeClasspath += sourceSets["example${name.capitalize()}"].output
         }
     }
 }
@@ -141,7 +148,9 @@ loom {
             sourceSet sourceSets.client
             compat.each { name, library -> sourceSet sourceSets["compat${name.capitalize()}"] }
         }
-        compat.each { name, library -> "modhub_example_${name}" { sourceSet sourceSets["example${name.capitalize()}"] } }
+        compat.each { name, library ->
+            if (sourceSets.findByName("example${name.capitalize()}")) "modhub_example_${name}" { sourceSet sourceSets["example${name.capitalize()}"] }
+        }
         'modhub_example_lumber' { sourceSet sourceSets.exampleLumber }
         'modhub_example_mining' { sourceSet sourceSets.exampleMining }
     }
@@ -176,12 +185,15 @@ dependencies {
     // The adapters' libraries, at the versions each adapter is built against (compile only: a
     // player brings their own). In the dev runtime too, for the example mods that use them.
     compat.each { name, libraries ->
+        boolean example = sourceSets.findByName("example${name.capitalize()}") != null
         libraries.each { library ->
-            add("compat${name.capitalize()}CompileOnly", library)
-            add("example${name.capitalize()}CompileOnly", library)
-            devRunRuntimeOnly library
+            // A library that can't run here is only read for its own classes, not what it pulls in.
+            if (name in compatCompileOnly) add("compat${name.capitalize()}CompileOnly", library) { transitive = false }
+            else add("compat${name.capitalize()}CompileOnly", library)
+            if (example) add("example${name.capitalize()}CompileOnly", library)
+            if (!(name in compatCompileOnly)) devRunRuntimeOnly library
         }
-        add("example${name.capitalize()}CompileOnly", "com.terraformersmc:modmenu:21.0.0")
+        if (example) add("example${name.capitalize()}CompileOnly", "com.terraformersmc:modmenu:21.0.0")
     }
     devRunRuntimeOnly project(':keybindery')
     devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output

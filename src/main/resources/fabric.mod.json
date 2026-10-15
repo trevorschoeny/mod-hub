@@ -29,7 +29,8 @@
       "com.trevlar.modhub.compat.yacl.YaclAdapter",
       "com.trevlar.modhub.compat.cloth.ClothConfigAdapter",
       "com.trevlar.modhub.compat.midnightlib.MidnightLibAdapter",
-      "com.trevlar.modhub.compat.fcap.ForgeConfigApiPortAdapter"
+      "com.trevlar.modhub.compat.fcap.ForgeConfigApiPortAdapter",
+      "com.trevlar.modhub.compat.owo.OwoConfigAdapter"
     ]
   },
   "mixins": [
