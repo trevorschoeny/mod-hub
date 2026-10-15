@@ -16,6 +16,17 @@ group   = 'com.trevlar'
 
 base.archivesName = 'modhub'
 
+// The config-library adapters (src/compat/<name>), each with the one library version it's compiled
+// against. An adapter's classes are the only ones that can reach its library; it ships inside
+// Mod Hub's jar and loads only when that library is installed and inside the range it was checked
+// against (page/Adapter, page/Pages). Updating one: bump its version here, build (an API change
+// fails here), run its Test Gallery scene, widen its testedRange, and add a row to the table in
+// the design doc.
+ext.compat = [
+        yacl       : 'maven.modrinth:yacl:3.9.7+26.3-fabric',
+        midnightlib: 'maven.modrinth:midnightlib:1.10.0+26.3-fabric',
+]
+
 java {
     // Minecraft 26.x runs on Java 25.
     sourceCompatibility = JavaVersion.VERSION_25
@@ -93,18 +104,18 @@ sourceSets {
         resources.srcDirs = ['src/prodcheck/resources']
         compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
     }
-    // One adapter per config library (src/compat/<library>), each compiled against a pinned
-    // version of its library and nothing else of the others', so only that adapter's classes can
-    // reach the library. Shipped inside Mod Hub's own jar; each loads only when its library is
-    // installed and in the range it was checked against (page/Pages, page/Adapter).
-    compatYacl {
-        java.srcDirs = ['src/compat/yacl/java']
-        compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
+    // One source set per adapter: see `compat` at the top of this file.
+    compat.each { name, library ->
+        create("compat${name.capitalize()}") {
+            java.srcDirs = ["src/compat/${name}/java"]
+            compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
+        }
     }
     // No sources: the classpath the dev client runs on, Mod Hub plus both examples.
     devRun {
         runtimeClasspath += client.runtimeClasspath + main.output + client.output +
-                compatYacl.output + exampleLumber.output + exampleMining.output
+                exampleLumber.output + exampleMining.output
+        compat.each { name, library -> runtimeClasspath += sourceSets["compat${name.capitalize()}"].output }
     }
 }
 
@@ -113,7 +124,7 @@ loom {
         'modhub' {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
-            sourceSet sourceSets.compatYacl
+            compat.each { name, library -> sourceSet sourceSets["compat${name.capitalize()}"] }
         }
         'modhub_example_lumber' { sourceSet sourceSets.exampleLumber }
         'modhub_example_mining' { sourceSet sourceSets.exampleMining }
@@ -148,8 +159,10 @@ dependencies {
 
     // The adapters' libraries, at the versions each adapter is built against (compile only: a
     // player brings their own). In the dev runtime too, for the example mods that use them.
-    compatYaclCompileOnly "maven.modrinth:yacl:3.9.7+26.3-fabric"
-    devRunRuntimeOnly "maven.modrinth:yacl:3.9.7+26.3-fabric"
+    compat.each { name, library ->
+        add("compat${name.capitalize()}CompileOnly", library)
+        devRunRuntimeOnly library
+    }
     devRunRuntimeOnly project(':keybindery')
     devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output
 }
@@ -169,7 +182,7 @@ def modmenuApiJar = tasks.register('modmenuApiJar', Jar) {
 jar {
     from('LICENSE') { rename { "${it}_${project.name}" } }
     from(modmenuApiJar) { into 'META-INF/jars' }
-    from sourceSets.compatYacl.output
+    compat.each { name, library -> from sourceSets["compat${name.capitalize()}"].output }
 }
 
 processModmenuApiResources {

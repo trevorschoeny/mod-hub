@@ -26,7 +26,8 @@
       "com.trevlar.modhub.ModHubSettings"
     ],
     "modhub:adapter": [
-      "com.trevlar.modhub.compat.yacl.YaclAdapter"
+      "com.trevlar.modhub.compat.yacl.YaclAdapter",
+      "com.trevlar.modhub.compat.midnightlib.MidnightLibAdapter"
     ]
   },
   "mixins": [

@@ -4,6 +4,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * What a row shows, and so how the screen draws it. Every kind a config library offers maps to one
@@ -34,8 +35,14 @@ public sealed interface Control {
     /** One of a fixed list, as a dropdown. */
     record Choice<T>(Value<T> value, List<T> options, Function<T, Component> label) implements Control {}
 
-    /** Free text. */
-    record Text(Value<String> value) implements Control {}
+    /**
+     * Free text. {@code accepts} says which text may reach the value: text on its way to valid
+     * (an identifier half typed) stays in the field without being written.
+     */
+    record Text(Value<String> value, Predicate<String> accepts) implements Control {
+        /** Any text at all. */
+        public Text(Value<String> value) { this(value, s -> true); }
+    }
 
     /** A button that runs something (YACL's ButtonOption, Cloth's link and action entries). */
     record Action(Component label, Runnable onPress) implements Control {}

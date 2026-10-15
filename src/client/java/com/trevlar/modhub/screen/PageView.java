@@ -98,8 +98,8 @@ final class PageView {
             case Control.Choice<?> c -> choice(body, name, tip, c);
             case Control.Text t -> {
                 body.text(name, TextRole.BODY, tip);
-                body.row((y, v) -> List.of(TextField.builder().at(0, y).size(FIELD_WIDTH, 16).label(name)
-                        .state(t.value()::get, t.value()::set)
+                body.row((y, v) -> List.of(drafted(t.value(), t.accepts(), s -> s, s -> s).at(0, y)
+                        .size(FIELD_WIDTH, 16).label(name)
                         .disabledWhen(unavailable(t.value())).build()), Body.CONTROL_ROW);
             }
             case Control.Action a -> body.row((y, v) -> {
@@ -137,27 +137,32 @@ final class PageView {
                 .label(f -> s.format().apply(toValue.apply(f)));
     }
 
-    /**
-     * A number field keeps what's being typed in a draft, since text like "1." or "-" is on the
-     * way to a number without being one: only text that parses reaches the value. When the value
-     * changes from elsewhere (Reset to Defaults), the draft follows it.
-     */
+    /** A number field: the text in a draft, and only text that parses reaches the value. */
     private static <N extends Number> TextField.Builder numberField(Control.NumberField<N> f) {
-        Value<N> value = f.value();
+        return drafted(f.value(), t -> f.parse().apply(t.strip()) != null, t -> f.parse().apply(t.strip()), f.format());
+    }
+
+    /**
+     * A text field that keeps what's being typed in a draft, since text like "1." or "minecraft:"
+     * is on the way to a valid value without being one: only text {@code accepts} takes reaches the
+     * value, through {@code parse}. When the value changes from elsewhere (Reset to Defaults), the
+     * draft follows it.
+     */
+    private static <T> TextField.Builder drafted(Value<T> value, java.util.function.Predicate<String> accepts,
+                                                  Function<String, T> parse, Function<T, String> format) {
         Object[] lastSeen = {value.get()};
-        String[] draft = {f.format().apply(value.get())};
+        String[] draft = {format.apply(value.get())};
         return TextField.builder()
                 .state(() -> {
                     if (!Objects.equals(lastSeen[0], value.get())) {
                         lastSeen[0] = value.get();
-                        draft[0] = f.format().apply(value.get());
+                        draft[0] = format.apply(value.get());
                     }
                     return draft[0];
                 }, text -> {
                     draft[0] = text;
-                    N parsed = f.parse().apply(text.strip());
-                    if (parsed != null) {
-                        value.set(parsed);
+                    if (accepts.test(text)) {
+                        value.set(parse.apply(text));
                         lastSeen[0] = value.get();
                     }
                 });
