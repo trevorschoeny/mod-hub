@@ -83,6 +83,7 @@ final class PageView {
                 body.text(name, TextRole.BODY, tip);
                 body.row((y, v) -> List.of(Slider.ofInts(s.min(), s.max()).at(0, y).size(SLIDER_WIDTH, 16)
                         .state(s.value()::get, n -> s.value().set(snap(n, s.min(), s.step())))
+                        .label(s.format())
                         .disabledWhen(unavailable(s.value())).build()), Body.CONTROL_ROW);
             }
             case Control.DecimalSlider s -> {

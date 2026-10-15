@@ -15,8 +15,17 @@ public sealed interface Control {
     /** On or off. A checkbox inline with the row's name. */
     record Toggle(Value<Boolean> value) implements Control {}
 
-    /** A whole number in a range, as a slider. {@code step} 1 for every number. */
-    record IntSlider(Value<Integer> value, int min, int max, int step) implements Control {}
+    /**
+     * A whole number in a range, as a slider. {@code step} 1 for every number; {@code format}
+     * writes the value inside the track (a library's own wording, such as "50%").
+     */
+    record IntSlider(Value<Integer> value, int min, int max, int step, Function<Integer, Component> format)
+            implements Control {
+        /** Shown as the plain number. */
+        public IntSlider(Value<Integer> value, int min, int max, int step) {
+            this(value, min, max, step, n -> Component.literal(String.valueOf(n)));
+        }
+    }
 
     /**
      * A decimal in a range, as a slider. {@code step} 0 for continuous; {@code format} writes the

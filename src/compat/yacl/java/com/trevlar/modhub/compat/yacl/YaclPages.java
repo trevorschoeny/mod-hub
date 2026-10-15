@@ -111,10 +111,14 @@ final class YaclPages {
             case BooleanController x -> new Control.Toggle(value((Option<Boolean>) o, config));
             case TickBoxController x -> new Control.Toggle(value((Option<Boolean>) o, config));
             case IntegerSliderController s -> new Control.IntSlider(value((Option<Integer>) o, config),
-                    (int) s.min(), (int) s.max(), Math.max(1, (int) s.interval()));
-            case LongSliderController s -> decimal(as((Option<Long>) o, config, Number::longValue), s.min(), s.max(), s.interval(), true);
-            case FloatSliderController s -> decimal(as((Option<Float>) o, config, Number::floatValue), s.min(), s.max(), s.interval(), false);
-            case DoubleSliderController s -> decimal(value((Option<Double>) o, config), s.min(), s.max(), s.interval(), false);
+                    (int) s.min(), (int) s.max(), Math.max(1, (int) s.interval()),
+                    formatter(s, IntegerSliderController.class, n -> Component.literal(String.valueOf(n))));
+            case LongSliderController s -> decimal(as((Option<Long>) o, config, Number::longValue), s.min(), s.max(), s.interval(),
+                    formatter(s, LongSliderController.class, (Long n) -> Component.literal(String.valueOf(n))), Math::round);
+            case FloatSliderController s -> decimal(as((Option<Float>) o, config, Number::floatValue), s.min(), s.max(), s.interval(),
+                    formatter(s, FloatSliderController.class, (Float n) -> Component.literal(trim(n))), d -> (float) (double) d);
+            case DoubleSliderController s -> decimal(value((Option<Double>) o, config), s.min(), s.max(), s.interval(),
+                    formatter(s, DoubleSliderController.class, (Double n) -> Component.literal(trim(n))), d -> d);
             case IntegerFieldController f -> new Control.NumberField<>(value((Option<Integer>) o, config),
                     t -> parse(t, f.min(), f.max(), Integer::parseInt), String::valueOf);
             case LongFieldController f -> new Control.NumberField<>(value((Option<Long>) o, config),
@@ -157,9 +161,19 @@ final class YaclPages {
         return Value.of(() -> v.get().doubleValue(), d -> v.set(back.apply(d)), v.defaultValue().doubleValue(), v::available);
     }
 
-    private static Control decimal(Value<Double> v, double min, double max, double step, boolean whole) {
-        return new Control.DecimalSlider(v, min, max, step,
-                d -> Component.literal(whole ? String.valueOf(Math.round(d)) : trim(d)));
+    /** A decimal slider whose label is the option's own wording, given the value in its own type. */
+    private static <N> Control decimal(Value<Double> v, double min, double max, double step,
+                                       Function<N, Component> format, Function<Double, N> asType) {
+        return new Control.DecimalSlider(v, min, max, step, d -> format.apply(asType.apply(d)));
+    }
+
+    /**
+     * The slider's own value wording (its private {@code valueFormatter}, the way YACL writes the
+     * value inside the track), or {@code fallback} if a YACL update has renamed it.
+     */
+    private static <N> Function<N, Component> formatter(Object controller, Class<?> declaring, Function<N, Component> fallback) {
+        ValueFormatter<N> f = field(controller, declaring, "valueFormatter");
+        return f == null ? fallback : f::format;
     }
 
     private static <T> Control cycling(Option<T> o, YetAnotherConfigLib config, CyclingListController<?> c) {

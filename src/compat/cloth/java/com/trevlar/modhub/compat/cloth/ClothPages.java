@@ -114,14 +114,15 @@ final class ClothPages {
             case IntegerSliderEntry s -> {
                 Integer min = field(s, IntegerSliderEntry.class, "minimum"), max = field(s, IntegerSliderEntry.class, "maximum");
                 if (min == null || max == null) yield new Control.Unsupported("slider");
-                yield new Control.IntSlider(value(screen, s, s::setValue, resets), min, max, 1);
+                yield new Control.IntSlider(value(screen, s, s::setValue, resets), min, max, 1, s.getTextGetter());
             }
             case LongSliderEntry s -> {
                 Long min = field(s, LongSliderEntry.class, "minimum"), max = field(s, LongSliderEntry.class, "maximum");
                 if (min == null || max == null) yield new Control.Unsupported("slider");
                 Value<Long> v = value(screen, s, s::setValue, resets);
                 Value<Double> d = Value.of(() -> (double) v.get(), x -> v.set(Math.round(x)), (double) v.defaultValue(), v::available);
-                yield new Control.DecimalSlider(d, min, max, 1, x -> Component.literal(String.valueOf(Math.round(x))));
+                Function<Long, Component> text = s.getTextGetter();
+                yield new Control.DecimalSlider(d, min, max, 1, x -> text.apply(Math.round(x)));
             }
             case IntegerListEntry n -> number(screen, n, Integer::parseInt, resets);
             case LongListEntry n -> number(screen, n, Long::parseLong, resets);
