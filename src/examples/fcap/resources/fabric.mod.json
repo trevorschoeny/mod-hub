@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "modhub_example_fcap",
+  "version": "1.0.0",
+  "name": "Example Forge Config Mod",
+  "description": "A pretend mod in Mod Hub's dev runtime whose settings are built with Forge Config API Port, so the Forge Config API Port adapter has every kind of setting to draw. Never shipped.",
+  "authors": [
+    "trevorschoeny"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.trevlar.modhub.example.fcap.FcapExample"
+    ]
+  },
+  "depends": {
+    "modhub": "*"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "modhub_example_yacl",
+  "version": "1.0.0",
+  "name": "Example YACL Mod",
+  "description": "A pretend mod in Mod Hub's dev runtime whose settings are built with YACL, so the YACL adapter has every kind of setting to draw. Never shipped.",
+  "authors": [
+    "trevorschoeny"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "modmenu": [
+      "com.trevlar.modhub.example.yacl.YaclExample"
+    ]
+  },
+  "depends": {
+    "modhub": "*"
+  }
+}

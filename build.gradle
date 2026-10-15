@@ -110,10 +110,17 @@ sourceSets {
         resources.srcDirs = ['src/prodcheck/resources']
         compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
     }
-    // One source set per adapter: see `compat` at the top of this file.
+    // One source set per adapter: see `compat` at the top of this file. And beside each, an
+    // example mod built with that library (src/examples/<name>), dev runtime only, using every kind
+    // of setting the adapter draws, for that library's Test Gallery scene.
     compat.each { name, library ->
         create("compat${name.capitalize()}") {
             java.srcDirs = ["src/compat/${name}/java"]
+            compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
+        }
+        create("example${name.capitalize()}") {
+            java.srcDirs = ["src/examples/${name}/java"]
+            resources.srcDirs = ["src/examples/${name}/resources"]
             compileClasspath += main.compileClasspath + main.output + client.compileClasspath + client.output
         }
     }
@@ -121,7 +128,9 @@ sourceSets {
     devRun {
         runtimeClasspath += client.runtimeClasspath + main.output + client.output +
                 exampleLumber.output + exampleMining.output
-        compat.each { name, library -> runtimeClasspath += sourceSets["compat${name.capitalize()}"].output }
+        compat.each { name, library ->
+            runtimeClasspath += sourceSets["compat${name.capitalize()}"].output + sourceSets["example${name.capitalize()}"].output
+        }
     }
 }
 
@@ -132,6 +141,7 @@ loom {
             sourceSet sourceSets.client
             compat.each { name, library -> sourceSet sourceSets["compat${name.capitalize()}"] }
         }
+        compat.each { name, library -> "modhub_example_${name}" { sourceSet sourceSets["example${name.capitalize()}"] } }
         'modhub_example_lumber' { sourceSet sourceSets.exampleLumber }
         'modhub_example_mining' { sourceSet sourceSets.exampleMining }
     }
@@ -168,8 +178,10 @@ dependencies {
     compat.each { name, libraries ->
         libraries.each { library ->
             add("compat${name.capitalize()}CompileOnly", library)
+            add("example${name.capitalize()}CompileOnly", library)
             devRunRuntimeOnly library
         }
+        add("example${name.capitalize()}CompileOnly", "com.terraformersmc:modmenu:21.0.0")
     }
     devRunRuntimeOnly project(':keybindery')
     devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output
