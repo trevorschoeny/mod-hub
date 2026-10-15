@@ -1,11 +1,8 @@
 package com.trevlar.modhub.screen;
 
 import com.trevlar.menukit.api.element.Button;
-import com.trevlar.menukit.api.element.Checkbox;
-import com.trevlar.menukit.api.element.Dropdown;
 import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.element.PanelElement;
-import com.trevlar.menukit.api.element.Slider;
 import com.trevlar.menukit.api.element.Tabs;
 import com.trevlar.menukit.api.element.TextRole;
 import com.trevlar.menukit.api.panel.InsideRegion;
@@ -16,11 +13,12 @@ import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.panel.ScreenKind;
 import com.trevlar.modhub.ModHubSettings;
-import com.trevlar.modhub.api.Setting;
 import com.trevlar.modhub.catalog.HubEntry;
 import com.trevlar.modhub.catalog.ModCatalog;
 import com.trevlar.modhub.catalog.ModInfo;
 import com.trevlar.modhub.catalog.ModMenuBridge;
+import com.trevlar.modhub.page.ConfigPage;
+import com.trevlar.modhub.page.Pages;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -38,9 +36,9 @@ import java.util.Map;
  * on the left, one per mod with settings; the page on the right; Done at the bottom; Escape back to
  * wherever it was opened from (the mod list, the pause menu, a container).
  *
- * <p>Each page is drawn from the mod's declared settings, in declaration order, under IP's frame:
- * the mod's name, its description, Reset to Defaults, the rule, then one row per setting. A mod
- * whose screen is Mod Menu's (YACL and others) gets a page with one button that opens it.
+ * <p>Each page is drawn from the mod's {@link ConfigPage} (see {@link Pages}) under IP's frame: the
+ * mod's name, its description, Reset to Defaults, the rule, then its rows ({@link PageView}). A mod
+ * whose page Mod Hub can't draw gets one button that opens its own screen.
  *
  * <p>Nothing to save: every control writes its setting on change.
  */
@@ -93,23 +91,33 @@ public final class ConfigScreen extends MKScreen {
         boolean options = kind == ScreenKind.OPTIONS;
         List<ModInfo> configurable = entry.mods().stream().filter(ModInfo::configurable).toList();
         int top = NameBar.HEIGHT + TOP_ROOM;
-        // One mod on its own has nothing to switch between: its page, without the tabs. The panel
-        // scrolls when the page is taller than the screen.
-        if (configurable.size() == 1) {
-            return Panel.builder("modhub:config")
-                    .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
-                    .position(PanelPosition.main())
-                    .elements(page(configurable.getFirst(), top))   // replaces the list, so first
-                    .add(NameBar.of(entry.name(), 0))
-                    .build();
-        }
         Tabs.Builder tabs = Tabs.builder()
                 .mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT)
                 .state(() -> SELECTED.get(entry.id()), id -> SELECTED.put(entry.id(), id))
                 .bodyScroll(id -> SCROLL.get(entry.id() + "/" + id), (id, v) -> SCROLL.put(entry.id() + "/" + id, v));
-        for (ModInfo mod : entry.mods()) {
-            if (!mod.configurable()) continue;
-            tabs.tab(Tabs.tab(mod.id()).label(Component.literal(mod.name())).body(() -> page(mod, 0)));
+        if (configurable.size() == 1) {
+            ModInfo mod = configurable.getFirst();
+            ConfigPage page = Pages.of(mod);
+            // One mod on its own has no mods to switch between: its page, without the tabs, unless
+            // its library splits it into categories, which then become the tabs. The panel scrolls
+            // when the page is taller than the screen.
+            if (page == null || page.categories().size() < 2) {
+                return Panel.builder("modhub:config")
+                        .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
+                        .position(PanelPosition.main())
+                        .elements(page(mod, top))   // replaces the list, so first
+                        .add(NameBar.of(entry.name(), 0))
+                        .build();
+            }
+            for (int i = 0; i < page.categories().size(); i++) {
+                ConfigPage.Category c = page.categories().get(i);
+                Component label = c.name() != null ? c.name() : Component.literal(mod.name());
+                tabs.tab(Tabs.tab("category" + i).label(label).body(() -> page(mod, page, List.of(c), false, 0)));
+            }
+        } else {
+            for (ModInfo mod : configurable) {
+                tabs.tab(Tabs.tab(mod.id()).label(Component.literal(mod.name())).body(() -> page(mod, 0)));
+            }
         }
         // The name bar across the top, between Back and Mod Hub; the tabs start under it.
         tabs.at(0, top);
@@ -161,74 +169,52 @@ public final class ConfigScreen extends MKScreen {
     //
     // Inventory Plus's frame and spacing (SettingsBody), so a Mod Hub page and an IP tab read the
     // same: the title in bold, the description, Reset to Defaults on its own row, the rule, then
-    // the settings one per line. A checkbox sits inline with its name; a slider or dropdown sits
-    // under its name. A setting's description is its name's tooltip, as IP's keys' are.
+    // the page's rows (PageView).
 
-    /** One mod's page, its rows starting at {@code top}. */
+    /** One mod's page, every category on it, its rows starting at {@code top}. */
     private static List<PanelElement> page(ModInfo mod, int top) {
+        ConfigPage page = Pages.of(mod);
+        return page == null ? openOwnScreen(mod, top) : page(mod, page, page.categories(), true, top);
+    }
+
+    /** {@code mod}'s page showing {@code categories}; {@code headed} names each one above its rows. */
+    private static List<PanelElement> page(ModInfo mod, ConfigPage page, List<ConfigPage.Category> categories,
+                                           boolean headed, int top) {
+        Body body = frame(mod, top);
+        if (page.resetAll() != null) {
+            body.row((y, v) -> List.of(Flow.builder().at(0, y).gap(10, 4)
+                    .add(Button.builder().size(0, 16).label(Component.literal("Reset to Defaults"))
+                            .onClick(() -> Confirm.ask("Reset " + mod.name() + " to defaults?",
+                                    "Every setting on this tab goes back to how a fresh install has it.",
+                                    page.resetAll()))
+                            .build())
+                    .build()), Body.CONTROL_ROW);
+        }
+        body.rule();
+        PageView.draw(body, categories, headed);
+        return body.build();
+    }
+
+    /** A mod whose settings Mod Hub can open but not draw: one button to its own screen. */
+    private static List<PanelElement> openOwnScreen(ModInfo mod, int top) {
+        Body body = frame(mod, top);
+        body.row((y, v) -> List.of(Button.builder().at(0, y).size(0, 16)
+                .label(Component.literal("Open settings"))
+                .tooltip(Component.literal("This mod's settings are its own screen, through Mod Menu."))
+                .onClick(() -> {
+                    Screen here = Minecraft.getInstance().gui.screen();
+                    Screen own = ModMenuBridge.screen(mod.id(), here);
+                    if (own != null) Minecraft.getInstance().gui.setScreen(own);
+                }).build()), Body.CONTROL_ROW);
+        return body.build();
+    }
+
+    /** The page's top: the mod's name in bold and its description. */
+    private static Body frame(ModInfo mod, int top) {
         Body body = new Body().at(top);
         body.heading(mod.name());
         body.text(Component.literal(mod.description().isBlank() ? " " : mod.description()), TextRole.BODY);
         body.gap(4);
-
-        if (mod.settings() == null) {
-            // A Mod Menu screen: Mod Hub can open it but not draw it.
-            body.row((y, v) -> List.of(Button.builder().at(0, y).size(0, 16)
-                    .label(Component.literal("Open settings"))
-                    .tooltip(Component.literal("This mod's settings are its own screen, through Mod Menu."))
-                    .onClick(() -> {
-                        Screen here = Minecraft.getInstance().gui.screen();
-                        Screen own = ModMenuBridge.screen(mod.id(), here);
-                        if (own != null) Minecraft.getInstance().gui.setScreen(own);
-                    }).build()), Body.CONTROL_ROW);
-            return body.build();
-        }
-
-        body.row((y, v) -> List.of(Flow.builder().at(0, y).gap(10, 4)
-                .add(Button.builder().size(0, 16).label(Component.literal("Reset to Defaults"))
-                        .onClick(() -> Confirm.ask("Reset " + mod.name() + " to defaults?",
-                                "Every setting on this tab goes back to how a fresh install has it.",
-                                mod.settings()::resetAll))
-                        .build())
-                .build()), Body.CONTROL_ROW);
-        body.rule();
-
-        for (Setting<?> s : mod.settings().all()) row(body, s);
-        return body.build();
-    }
-
-    /** One setting: a checkbox inline with its name, or its name above a slider or dropdown. */
-    private static void row(Body body, Setting<?> s) {
-        Component tip = tooltip(s);
-        switch (s) {
-            case Setting.Bool b -> body.row((y, v) -> {
-                Checkbox.Builder c = Checkbox.builder().at(0, y).label(Labels.name(b)).state(b::get, b::set);
-                if (tip != null) c.tooltip(tip);
-                return List.of(c.build());
-            }, Body.TEXT_ROW + 4);
-            case Setting.Int i -> {
-                body.text(Labels.name(i), TextRole.BODY, tip);
-                body.row((y, v) -> List.of(Slider.ofInts(i.min, i.max).at(0, y).size(180, 16)
-                        .state(i::get, i::set).build()), Body.CONTROL_ROW);
-            }
-            case Setting.Choice<?> c -> choice(body, c, tip);
-        }
-    }
-
-    /** The setting's description, and for a server setting, who decides it. Null when neither. */
-    private static @Nullable Component tooltip(Setting<?> s) {
-        Component desc = Labels.description(s);
-        if (!s.isServerSide()) return desc;
-        Component server = Component.literal("On a server, the server's own setting decides.");
-        return desc == null ? server : Component.empty().append(desc).append("\n").append(server);
-    }
-
-    private static <E extends Enum<E>> void choice(Body body, Setting.Choice<E> c, @Nullable Component tip) {
-        body.text(Labels.name(c), TextRole.BODY, tip);
-        body.row((y, v) -> List.of(Dropdown.<E>builder().at(0, y).size(110, 16)
-                .items(c.values())
-                .label(e -> Labels.value(c, e))
-                .state(c::get, c::set)
-                .build()), Body.CONTROL_ROW);
+        return body;
     }
 }
