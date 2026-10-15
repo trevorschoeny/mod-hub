@@ -59,7 +59,7 @@ public final class ConfigScreen extends MKScreen {
     private static final Identifier UNDO_ICON = Identifier.fromNamespaceAndPath("modhub", "icon/undo");
     private static final Identifier REDO_ICON = Identifier.fromNamespaceAndPath("modhub", "icon/redo");
 
-    /** The open tab's undo and redo. */
+    /** Undo and redo: the play session's history, shared by every config screen. */
     private final History history;
 
     private ConfigScreen(HubEntry entry, @Nullable Screen parent, ScreenKind kind, History history) {
@@ -99,7 +99,7 @@ public final class ConfigScreen extends MKScreen {
             }
         }
         ScreenKind kind = ModHubSettings.OPTIONS_LOOK.get() ? ScreenKind.OPTIONS : ScreenKind.CONTAINER;
-        mc.gui.setScreen(new ConfigScreen(entry, parent, kind, new History()));
+        mc.gui.setScreen(new ConfigScreen(entry, parent, kind, History.SESSION));
     }
 
     private static Panel main(HubEntry entry, ScreenKind kind, History history) {
@@ -108,11 +108,7 @@ public final class ConfigScreen extends MKScreen {
         int top = NameBar.HEIGHT + TOP_ROOM;
         Tabs.Builder tabs = Tabs.builder()
                 .mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT)
-                // The history belongs to the open tab: another tab starts with none.
-                .state(() -> SELECTED.get(entry.id()), id -> {
-                    if (!id.equals(SELECTED.get(entry.id()))) history.clear();
-                    SELECTED.put(entry.id(), id);
-                })
+                .state(() -> SELECTED.get(entry.id()), id -> SELECTED.put(entry.id(), id))
                 .bodyScroll(id -> SCROLL.get(entry.id() + "/" + id), (id, v) -> SCROLL.put(entry.id() + "/" + id, v));
         if (configurable.size() == 1) {
             ModInfo mod = configurable.getFirst();
@@ -175,21 +171,35 @@ public final class ConfigScreen extends MKScreen {
     }
 
     /**
-     * Done at the bottom centre, as every Options screen ends, with Undo to its left and Redo to its
-     * right, each shown only when there's a step to take. Their places are kept while hidden, so
-     * Done never moves. Done and Escape agree.
+     * Done at the bottom centre, as every Options screen ends, with Undo and Redo to its left,
+     * greyed out while there's nothing to undo or redo. Each one's tooltip names the step it would
+     * take. The panel is as wide again on Done's right, so Done stays centred. Done and Escape agree.
      */
     private static Panel done(History history) {
-        return Panel.builder("modhub:config_done")
+        Panel panel = Panel.builder("modhub:config_done")
                 .style(PanelStyle.NONE)
                 .position(PanelPosition.region(OutsideRegion.BOTTOM_CENTER))
-                .add(Button.builder().at(0, 0).icon(UNDO_ICON).size(20, 20).tooltip(Component.literal("Undo"))
-                        .visibleWhen(history::canUndo).onClick(history::undo).build())
-                .add(Button.builder().at(24, 0).label(CommonComponents.GUI_DONE).size(200, 20)
+                .add(Button.builder().at(0, 0).icon(UNDO_ICON).size(20, 20)
+                        .tooltip(() -> stepTip("Undo", history.undoLabel()))
+                        .disabledWhen(() -> !history.canUndo()).onClick(history::undo).build())
+                .add(Button.builder().at(24, 0).icon(REDO_ICON).size(20, 20)
+                        .tooltip(() -> stepTip("Redo", history.redoLabel()))
+                        .disabledWhen(() -> !history.canRedo()).onClick(history::redo).build())
+                .add(Button.builder().at(48, 0).label(CommonComponents.GUI_DONE).size(200, 20)
                         .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
-                .add(Button.builder().at(228, 0).icon(REDO_ICON).size(20, 20).tooltip(Component.literal("Redo"))
-                        .visibleWhen(history::canRedo).onClick(history::redo).build())
                 .build();
+        return panel.pinnedWidth(48 + 200 + 48);
+    }
+
+    /** "Undo Particles", "Redo Reset to Defaults", or "Nothing to undo". */
+    private static Component stepTip(String verb, @Nullable Component step) {
+        return step == null ? Component.literal("Nothing to " + verb.toLowerCase(java.util.Locale.ROOT))
+                : Component.literal(verb + " ").append(step);
+    }
+
+    /** Called when the world closes: the session's undo history ends with it. */
+    public static void forgetHistory() {
+        History.SESSION.clear();
     }
 
     /**
@@ -228,7 +238,8 @@ public final class ConfigScreen extends MKScreen {
                             .onClick(() -> Confirm.ask("Reset " + mod.name() + " to defaults?",
                                     "Every setting on this tab goes back to how a fresh install has it.",
                                     // One step for the history, however many settings it changed.
-                                    () -> history.asOneStep(History.values(page.rows().toList()), page.resetAll())))
+                                    () -> history.asOneStep(History.values(page.rows().toList()),
+                                            Component.literal("Reset to Defaults"), page.resetAll())))
                             .build())
                     .build()), Body.CONTROL_ROW);
         }

@@ -1,0 +1,14 @@
+{
+  "modhub_example_midnightlib.midnightconfig.title": "Example MidnightLib Mod",
+  "modhub_example_midnightlib.midnightconfig.category.general": "General",
+  "modhub_example_midnightlib.midnightconfig.category.numbers": "Numbers",
+  "modhub_example_midnightlib.midnightconfig.intro": "Every change saves at once.",
+  "modhub_example_midnightlib.midnightconfig.particles": "Particles",
+  "modhub_example_midnightlib.midnightconfig.particles.label.tooltip": "A MidnightLib on/off field.",
+  "modhub_example_midnightlib.midnightconfig.mode": "Mode",
+  "modhub_example_midnightlib.midnightconfig.sparkles": "Sparkles",
+  "modhub_example_midnightlib.midnightconfig.sparkles.label.tooltip": "Only while Particles is on.",
+  "modhub_example_midnightlib.midnightconfig.range": "Range",
+  "modhub_example_midnightlib.midnightconfig.volume": "Volume",
+  "modhub_example_midnightlib.midnightconfig.stack": "Stack size"
+}

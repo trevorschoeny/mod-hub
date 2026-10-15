@@ -72,7 +72,7 @@ final class PageView {
     private static void row(Body body, ConfigPage.Row r, History history) {
         Component name = r.name();
         Component tip = r.description();
-        switch (watched(r.control(), history)) {
+        switch (watched(r.control(), r.name(), history)) {
             case Control.Toggle t -> body.row((y, v) -> {
                 Checkbox.Builder c = Checkbox.builder().at(0, y).label(name)
                         .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value()));
@@ -118,14 +118,14 @@ final class PageView {
 
     /** The control with its value recorded by the tab's undo history; the same control otherwise. */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static Control watched(Control c, History h) {
+    private static Control watched(Control c, Component name, History h) {
         return switch (c) {
-            case Control.Toggle t -> new Control.Toggle(h.watch(t.value()));
-            case Control.IntSlider s -> new Control.IntSlider(h.watch(s.value()), s.min(), s.max(), s.step(), s.format());
-            case Control.DecimalSlider s -> new Control.DecimalSlider(h.watch(s.value()), s.min(), s.max(), s.step(), s.format());
-            case Control.NumberField f -> new Control.NumberField(h.watch(f.value()), f.parse(), f.format());
-            case Control.Choice ch -> new Control.Choice(h.watch(ch.value()), ch.options(), ch.label());
-            case Control.Text t -> new Control.Text(h.watch(t.value()), t.accepts());
+            case Control.Toggle t -> new Control.Toggle(h.watch(t.value(), name));
+            case Control.IntSlider s -> new Control.IntSlider(h.watch(s.value(), name), s.min(), s.max(), s.step(), s.format());
+            case Control.DecimalSlider s -> new Control.DecimalSlider(h.watch(s.value(), name), s.min(), s.max(), s.step(), s.format());
+            case Control.NumberField f -> new Control.NumberField(h.watch(f.value(), name), f.parse(), f.format());
+            case Control.Choice ch -> new Control.Choice(h.watch(ch.value(), name), ch.options(), ch.label());
+            case Control.Text t -> new Control.Text(h.watch(t.value(), name), t.accepts());
             case Control.Action a -> a;
             case Control.Label l -> l;
             case Control.Unsupported u -> u;

@@ -2,7 +2,10 @@ package com.trevlar.modhub.screen;
 
 import com.trevlar.modhub.page.Value;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -14,7 +17,7 @@ import java.util.Objects;
 import java.util.function.LongSupplier;
 
 /**
- * The open tab's undo and redo. Every control's value on the tab is {@link #watch watched}, so each
+ * The config screen's undo and redo. Every control's value on the page is {@link #watch watched}, so each
  * real change is recorded as a step (which setting, from what, to what), whatever library the
  * setting comes from. Reset to Defaults is recorded as one step ({@link #asOneStep}).
  *
@@ -24,9 +27,15 @@ import java.util.function.LongSupplier;
  *
  * <p>Undo and Redo set values through the same {@link Value#set}, so they save at once and the
  * library reacts as to any change, but they aren't recorded themselves. A new change clears Redo.
- * Switching tabs or leaving the screen clears both ({@link #clear}).
+ *
+ * <p><b>One history for the play session</b> ({@link #SESSION}), across every mod's settings and
+ * every opening of the config screen: the buttons' tooltips name what each would undo or redo, so
+ * a step on another tab is never a surprise. Closing the world clears it.
  */
 final class History {
+
+    /** The history every config screen shares until the world closes. */
+    static final History SESSION = new History();
 
     /** How soon a change to the same setting must follow its last to count as the same gesture. */
     static final long JOIN_MS = 1000;
@@ -35,7 +44,8 @@ final class History {
     @SuppressWarnings("rawtypes")
     private record Change(Value value, Object from, Object to) {}
 
-    private record Step(List<Change> changes, long at) {}
+    /** {@code label} names the step in the buttons' tooltips: the setting, or "Reset to Defaults". */
+    private record Step(List<Change> changes, long at, Component label) {}
 
     private final Deque<Step> undo = new ArrayDeque<>();
     private final Deque<Step> redo = new ArrayDeque<>();
@@ -54,6 +64,12 @@ final class History {
 
     boolean canRedo() { return !redo.isEmpty(); }
 
+    /** What Undo would undo, or null when there's nothing. */
+    @Nullable Component undoLabel() { return undo.isEmpty() ? null : undo.peek().label(); }
+
+    /** What Redo would redo, or null when there's nothing. */
+    @Nullable Component redoLabel() { return redo.isEmpty() ? null : redo.peek().label(); }
+
     void clear() {
         undo.clear();
         redo.clear();
@@ -63,7 +79,7 @@ final class History {
      * {@code value}, recording each real change to it. The setting may refuse or adjust a value,
      * so the change recorded is what it held before and after, not what was asked for.
      */
-    <T> Value<T> watch(Value<T> value) {
+    <T> Value<T> watch(Value<T> value, Component name) {
         return new Value<>() {
             @Override public T get() { return value.get(); }
             @Override public T defaultValue() { return value.defaultValue(); }
@@ -73,13 +89,13 @@ final class History {
             public void set(T v) {
                 T before = value.get();
                 value.set(v);
-                if (!applying) record(value, before, value.get());
+                if (!applying) record(value, before, value.get(), name);
             }
         };
     }
 
-    /** Runs {@code action} (Reset to Defaults) and records whatever it changed among {@code values} as one step. */
-    void asOneStep(List<Value<?>> values, Runnable action) {
+    /** Runs {@code action} and records whatever it changed among {@code values} as one step named {@code label}. */
+    void asOneStep(List<Value<?>> values, Component label, Runnable action) {
         List<Object> before = new ArrayList<>();
         for (Value<?> v : values) before.add(v.get());
         applying = true;
@@ -93,7 +109,7 @@ final class History {
             Object after = values.get(i).get();
             if (!Objects.equals(before.get(i), after)) changes.add(new Change(values.get(i), before.get(i), after));
         }
-        push(changes, false);
+        push(changes, false, label);
     }
 
     void undo() {
@@ -110,16 +126,16 @@ final class History {
         undo.push(step);
     }
 
-    private void record(Value<?> value, Object from, Object to) {
+    private void record(Value<?> value, Object from, Object to, Component name) {
         if (Objects.equals(from, to)) return;   // refused, or set to what it was
-        push(List.of(new Change(value, from, to)), true);
+        push(List.of(new Change(value, from, to)), true, name);
     }
 
     /**
      * Adds a step, or folds a one-setting change into the last step when it's the same setting
      * within the join window.
      */
-    private void push(List<Change> changes, boolean mayJoin) {
+    private void push(List<Change> changes, boolean mayJoin, Component label) {
         if (changes.isEmpty()) return;
         redo.clear();
         long now = clock.getAsLong();
@@ -129,10 +145,10 @@ final class History {
             undo.poll();
             Change joined = new Change(changes.getFirst().value(), last.changes().getFirst().from(), changes.getFirst().to());
             // Back where the gesture began: nothing to undo.
-            if (!Objects.equals(joined.from(), joined.to())) undo.push(new Step(List.of(joined), now));
+            if (!Objects.equals(joined.from(), joined.to())) undo.push(new Step(List.of(joined), now, label));
             return;
         }
-        undo.push(new Step(List.copyOf(changes), now));
+        undo.push(new Step(List.copyOf(changes), now, label));
     }
 
     /** Sets each change's "from" (undo) or "to" (redo) value, skipping settings that are greyed out now. */

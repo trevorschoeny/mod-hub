@@ -2,6 +2,7 @@ package com.trevlar.modhub.compat.midnightlib;
 
 import com.trevlar.modhub.page.ConfigPage;
 import com.trevlar.modhub.page.Control;
+import com.trevlar.modhub.page.Labels;
 import com.trevlar.modhub.page.Value;
 
 import eu.midnightdust.lib.config.EntryInfo;
@@ -68,7 +69,7 @@ final class MidnightPages {
     }
 
     private static ConfigPage.Row row(String modid, EntryInfo info) {
-        Component name = Component.translatable(info.translationKey);
+        Component name = label(info);
         if (info.entry == null) {
             // A @Comment: a line of text. Centred comments are headings in MidnightLib's own look.
             Component text = info.comment.centered() ? name.copy().withStyle(ChatFormatting.BOLD) : name;
@@ -188,6 +189,15 @@ final class MidnightPages {
         MidnightConfig.write(modid);
     }
 
+    /**
+     * The field's name: its lang key when the mod has one; otherwise the field name spaced out
+     * ("sparkleCount" as "Sparkle count"), rather than the raw key MidnightLib's own screen would show.
+     */
+    private static Component label(EntryInfo info) {
+        if (Language.getInstance().has(info.translationKey)) return Component.translatable(info.translationKey);
+        return Component.literal(Labels.humanize(info.fieldName));
+    }
+
     /** The field's tooltip lang key, on its label or its widget, when the mod has one. */
     private static @Nullable Component tooltip(EntryInfo info) {
         for (String key : List.of(info.translationKey + ".label.tooltip", info.translationKey + ".tooltip")) {
@@ -208,7 +218,7 @@ final class MidnightPages {
     private static Component enumName(String modid, Class<?> type, Enum<?> value) {
         if (value instanceof StringRepresentable s) return Component.translatable(s.getSerializedName());
         String key = String.format("%s.midnightconfig.enum.%s.%s", modid, type.getSimpleName(), value);
-        return Language.getInstance().has(key) ? Component.translatable(key) : Component.literal(value.toString());
+        return Language.getInstance().has(key) ? Component.translatable(key) : Component.literal(Labels.humanize(value.name().toLowerCase(Locale.ROOT)));
     }
 
     /** Typed text as a number inside the field's limits, or null while it isn't one. */

@@ -2,6 +2,8 @@ package com.trevlar.modhub.screen;
 
 import com.trevlar.modhub.page.Value;
 
+import net.minecraft.network.chat.Component;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -25,7 +27,7 @@ class HistoryTest {
     @Test
     void aDragIsOneStep() {
         Box b = new Box();
-        Value<Integer> v = h.watch(value(b));
+        Value<Integer> v = h.watch(value(b), Component.literal("B"));
         for (int i = 1; i <= 10; i++) { now += 50; v.set(i); }
         h.undo();
         assertEquals(0, b.v);
@@ -37,7 +39,7 @@ class HistoryTest {
     @Test
     void changesApartAreSeparateSteps() {
         Box b = new Box();
-        Value<Integer> v = h.watch(value(b));
+        Value<Integer> v = h.watch(value(b), Component.literal("B"));
         v.set(1);
         now += History.JOIN_MS + 1;
         v.set(2);
@@ -49,7 +51,7 @@ class HistoryTest {
     @Test
     void tickedAndUntickedLeavesNothing() {
         Box b = new Box();
-        Value<Integer> v = h.watch(value(b));
+        Value<Integer> v = h.watch(value(b), Component.literal("B"));
         v.set(1);
         now += 100;
         v.set(0);
@@ -61,13 +63,14 @@ class HistoryTest {
         Box a = new Box(), b = new Box();
         a.v = 5; b.v = 7;
         Value<Integer> va = value(a), vb = value(b);
-        h.asOneStep(List.of(va, vb), () -> { a.v = 0; b.v = 0; });
+        h.asOneStep(List.of(va, vb), Component.literal("Reset to Defaults"), () -> { a.v = 0; b.v = 0; });
+        assertEquals("Reset to Defaults", h.undoLabel().getString());
         h.undo();
         assertEquals(5, a.v);
         assertEquals(7, b.v);
         assertTrue(h.canRedo());
         now += 5000;
-        h.watch(va).set(9);
+        h.watch(va, Component.literal("A")).set(9);
         assertFalse(h.canRedo());
     }
 }
