@@ -65,7 +65,7 @@ public final class Pages {
         if (original == null) return null;
         for (Adapter a : adapters()) {
             try {
-                ConfigPage page = a.translate(original);
+                ConfigPage page = a.translate(mod.id(), original);
                 if (page == null) continue;   // another library's screen
                 if (page.drawable()) return page;
                 LOG.info("Mod Hub: {} has settings Mod Hub can't draw yet; it opens its own screen", mod.id());

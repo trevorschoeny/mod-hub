@@ -19,7 +19,7 @@ public final class YaclAdapter implements Adapter {
     @Override public String testedRange() { return ">=3.9.6 <3.10"; }
 
     @Override
-    public @Nullable ConfigPage translate(Screen screen) {
+    public @Nullable ConfigPage translate(String modId, Screen screen) {
         return YaclPages.translate(screen);
     }
 }

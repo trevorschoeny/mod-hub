@@ -19,7 +19,7 @@ public final class MidnightLibAdapter implements Adapter {
     @Override public String testedRange() { return ">=1.10.0 <1.11"; }
 
     @Override
-    public @Nullable ConfigPage translate(Screen screen) {
+    public @Nullable ConfigPage translate(String modId, Screen screen) {
         return MidnightPages.translate(screen);
     }
 }

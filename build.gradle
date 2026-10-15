@@ -23,8 +23,11 @@ base.archivesName = 'modhub'
 // fails here), run its Test Gallery scene, widen its testedRange, and add a row to the table in
 // the design doc.
 ext.compat = [
-        yacl       : 'maven.modrinth:yacl:3.9.7+26.3-fabric',
-        midnightlib: 'maven.modrinth:midnightlib:1.10.0+26.3-fabric',
+        yacl       : ['maven.modrinth:yacl:3.9.7+26.3-fabric'],
+        midnightlib: ['maven.modrinth:midnightlib:1.10.0+26.3-fabric'],
+        // Forge Config API Port 26.3.1 (Modrinth version id), and the NightConfig it nests.
+        fcap       : ['maven.modrinth:forge-config-api-port:JpKvrr9J', 'com.electronwill.night-config:core:3.8.4',
+                      'com.electronwill.night-config:toml:3.8.4'],
 ]
 
 java {
@@ -39,6 +42,8 @@ repositories {
     // Not for this mod: Keybindery (dev runtime only, below) depends on YACL, whose builds are
     // only on this Maven repository, so Gradle needs it to resolve Keybindery's runtime classpath.
     maven { url 'https://api.modrinth.com/maven' }
+    // NightConfig, which Forge Config API Port nests, for its adapter's compile classpath.
+    mavenCentral()
 }
 
 // MenuKit's client source set must exist before this project reads it, and Keybindery's.
@@ -159,9 +164,11 @@ dependencies {
 
     // The adapters' libraries, at the versions each adapter is built against (compile only: a
     // player brings their own). In the dev runtime too, for the example mods that use them.
-    compat.each { name, library ->
-        add("compat${name.capitalize()}CompileOnly", library)
-        devRunRuntimeOnly library
+    compat.each { name, libraries ->
+        libraries.each { library ->
+            add("compat${name.capitalize()}CompileOnly", library)
+            devRunRuntimeOnly library
+        }
     }
     devRunRuntimeOnly project(':keybindery')
     devRunRuntimeOnly rootProject.project(':keybindery').sourceSets.client.output

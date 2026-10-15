@@ -27,8 +27,8 @@ public interface Adapter {
     String testedRange();
 
     /**
-     * {@code screen} as a page, or null when it isn't this library's screen. An exception, or a
-     * page with something on it Mod Hub can't draw, also sends the mod to its own screen.
+     * {@code modId}'s screen as a page, or null when it isn't this library's screen. An exception,
+     * or a page with something on it Mod Hub can't draw, also sends the mod to its own screen.
      */
-    @Nullable ConfigPage translate(Screen screen);
+    @Nullable ConfigPage translate(String modId, Screen screen);
 }
