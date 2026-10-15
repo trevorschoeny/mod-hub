@@ -19,6 +19,7 @@ public final class MidnightExample extends MidnightConfig implements ClientModIn
     @Condition(requiredOption = "particles", visibleButLocked = true)
     @Entry(category = "general") public static boolean sparkles = false;
     @Entry(category = "general") public static String greeting = "Hello";
+    @Entry(category = "general", isColor = true, width = 7, min = 7) public static String glow = "#3fa7ff";
     @Entry(category = "numbers", min = 4, max = 64, isSlider = true) public static int range = 16;
     @Entry(category = "numbers", min = 0, max = 1, isSlider = true) public static double volume = 0.5;
     @Entry(category = "numbers", min = 1, max = 64) public static int stack = 32;

@@ -9,7 +9,9 @@ import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.Controller;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
+import dev.isxander.yacl3.api.OptionEventListener;
 import dev.isxander.yacl3.api.OptionFlag;
+import dev.isxander.yacl3.api.utils.Dimension;
 import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.ValueFormatter;
@@ -21,7 +23,7 @@ import dev.isxander.yacl3.gui.controllers.TickBoxController;
 import dev.isxander.yacl3.gui.controllers.cycling.CyclingListController;
 import dev.isxander.yacl3.gui.controllers.dropdown.DropdownStringController;
 import dev.isxander.yacl3.gui.controllers.dropdown.EnumDropdownController;
-import dev.isxander.yacl3.gui.controllers.dropdown.ItemController;
+import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownController;
 import dev.isxander.yacl3.gui.controllers.slider.DoubleSliderController;
 import dev.isxander.yacl3.gui.controllers.slider.FloatSliderController;
 import dev.isxander.yacl3.gui.controllers.slider.IntegerSliderController;
@@ -38,6 +40,7 @@ import net.minecraft.network.chat.Component;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.awt.Color;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,8 +57,9 @@ import java.util.function.Function;
  * runs, then the option's flags, as YACL's own Save would. A flag asking for a game restart is shown
  * as a note on the row instead of a prompt on every change.
  *
- * <p>Controllers map onto Mod Hub's controls by class. Anything else (a colour, an item, a list, a
- * mod's own controller) is {@link Control.Unsupported}, which sends the mod to YACL's screen.
+ * <p>Controllers map onto Mod Hub's controls by class, a colour onto Mod Hub's colour picker.
+ * Anything else (YACL's item picker, a mod's own controller) is YACL's own widget, hosted in its
+ * row. Only a list sends the mod to YACL's screen.
  */
 final class YaclPages {
 
@@ -135,10 +139,49 @@ final class YaclPages {
             case CyclingListController<?> x -> cycling((Option<Object>) o, config, x);
             case EnumDropdownController<?> d -> enumDropdown((Option<Enum<?>>) o, config, d);
             case LabelController x -> new Control.Label();
-            case ColorController x -> new Control.Unsupported("colour");
-            case ItemController x -> new Control.Unsupported("item");
-            default -> new Control.Unsupported("custom widget " + c.getClass().getSimpleName());
+            case ColorController x -> colour((Option<Color>) o, config, x.allowAlpha());
+            // Anything else (YACL's item picker, a mod's own controller) is YACL's own widget,
+            // hosted in its row.
+            default -> hosted(screen, config, o, c);
         };
+    }
+
+    /** A {@code java.awt.Color} option as a Mod Hub colour: {@code 0xAARRGGBB}, or {@code 0xRRGGBB} without alpha. */
+    private static Control colour(Option<Color> o, YetAnotherConfigLib config, boolean alpha) {
+        Value<Color> v = value(o, config);
+        return new Control.Color(Value.of(() -> argb(v.get(), alpha), n -> v.set(new Color(alpha ? n : n | 0xFF000000, true)),
+                argb(v.defaultValue(), alpha), v::available), alpha);
+    }
+
+    private static int argb(Color c, boolean alpha) {
+        return alpha ? c.getRGB() : c.getRGB() & 0xFFFFFF;
+    }
+
+    /** Width of a hosted YACL widget: it draws the option's name on its left and its control on its right. */
+    private static final int HOSTED_WIDTH = 240;
+
+    /**
+     * The option's own YACL widget, made by its controller as YACL's screen would make it, against
+     * the (never shown) original screen. The widget changes the option's pending value itself, so
+     * each change it makes is applied and saved here at once, as every other row's is. A dropdown
+     * opens its list past its row, so it's hosted with overflow.
+     */
+    private static <T> Control hosted(YACLScreen screen, YetAnotherConfigLib config, Option<T> o, Controller<?> c) {
+        o.addEventListener((option, event) -> {
+            if (event == OptionEventListener.Event.STATE_CHANGE && option.changed()) apply(option, config);
+        });
+        return new Control.Hosted<>(() -> c.provideWidget(screen, Dimension.ofInt(0, 0, HOSTED_WIDTH, 20)),
+                (w, x, y, width, height) -> w.setDimension(Dimension.ofInt(x, y, width, height)),
+                HOSTED_WIDTH, 20, c instanceof AbstractDropdownController<?>);
+    }
+
+    /** Applies the option's pending value, saves, and runs its flags, as YACL's Save would. False when nothing changed. */
+    private static boolean apply(Option<?> o, YetAnotherConfigLib config) {
+        if (!o.applyValue()) return false;
+        config.saveFunction().run();
+        Minecraft mc = Minecraft.getInstance();
+        for (OptionFlag flag : o.flags()) if (flag != OptionFlag.GAME_RESTART) flag.accept(mc);
+        return true;
     }
 
     /**
@@ -148,10 +191,7 @@ final class YaclPages {
     private static <T> Value<T> value(Option<T> o, YetAnotherConfigLib config) {
         return Value.of(o::pendingValue, v -> {
             o.requestSet(v);
-            if (!o.applyValue()) return;   // unchanged: nothing to save
-            config.saveFunction().run();
-            Minecraft mc = Minecraft.getInstance();
-            for (OptionFlag flag : o.flags()) if (flag != OptionFlag.GAME_RESTART) flag.accept(mc);
+            apply(o, config);
         }, o.binding().defaultValue(), o::available);
     }
 

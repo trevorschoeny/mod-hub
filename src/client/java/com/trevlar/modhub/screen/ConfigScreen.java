@@ -23,7 +23,6 @@ import com.trevlar.modhub.page.Pages;
 import com.mojang.blaze3d.platform.InputConstants;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.screens.Screen;
@@ -198,12 +197,12 @@ public final class ConfigScreen extends MKScreen {
     }
 
     /**
-     * Ctrl+Z undoes and Ctrl+Shift+Z redoes (Cmd on a Mac), built in. Not while a text field has
-     * focus: there the keys are the field's own.
+     * Ctrl+Z undoes and Ctrl+Shift+Z redoes (Cmd on a Mac), built in. Not while a text field (or a
+     * hosted widget) captures the keyboard: there the keys are its own.
      */
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (event.key() == InputConstants.KEY_Z && event.hasControlDownWithQuirk() && !(getFocused() instanceof EditBox)) {
+        if (event.key() == InputConstants.KEY_Z && event.hasControlDownWithQuirk() && !isInputCaptured()) {
             if (event.hasShiftDown()) history.redo();
             else history.undo();
             return true;

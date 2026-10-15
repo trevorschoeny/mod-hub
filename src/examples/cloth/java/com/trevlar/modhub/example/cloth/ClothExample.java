@@ -27,6 +27,7 @@ public final class ClothExample implements ModMenuApi {
     static String greeting = "Hello";
     static Mode mode = Mode.GENTLE;
     static int saves;
+    static int glow = 0x3FA7FF, tint = 0x8044CC22;
 
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
@@ -35,7 +36,8 @@ public final class ClothExample implements ModMenuApi {
                     .setTitle(Component.literal("Example Cloth Mod"))
                     .setSavingRunnable(() -> System.out.println("[example cloth] saved " + (++saves) + ": particles="
                             + particles + " mode=" + mode + " range=" + range + " stack=" + stack + " seed=" + seed
-                            + " volume=" + volume + " greeting=" + greeting));
+                            + " volume=" + volume + " greeting=" + greeting + " glow=" + Integer.toHexString(glow)
+                            + " tint=" + Integer.toHexString(tint)));
             ConfigEntryBuilder e = builder.entryBuilder();
             ConfigCategory general = builder.getOrCreateCategory(Component.literal("General"));
             general.addEntry(e.startTextDescription(Component.literal("Every change saves at once.")).build());
@@ -45,6 +47,10 @@ public final class ClothExample implements ModMenuApi {
                     .setSaveConsumer(v -> mode = v).build());
             general.addEntry(e.startStrField(Component.literal("Greeting"), greeting).setDefaultValue("Hello")
                     .setSaveConsumer(v -> greeting = v).build());
+            general.addEntry(e.startColorField(Component.literal("Glow colour"), glow).setDefaultValue(0x3FA7FF)
+                    .setSaveConsumer(v -> glow = v).build());
+            general.addEntry(e.startAlphaColorField(Component.literal("Tint"), tint).setDefaultValue(0x8044CC22)
+                    .setSaveConsumer(v -> tint = v).build());
             ConfigCategory numbers = builder.getOrCreateCategory(Component.literal("Numbers"));
             numbers.addEntry(e.startIntSlider(Component.literal("Range"), range, 4, 64).setDefaultValue(16)
                     .setSaveConsumer(v -> range = v).build());

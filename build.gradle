@@ -24,7 +24,8 @@ base.archivesName = 'modhub'
 // the design doc.
 ext.compat = [
         yacl       : ['maven.modrinth:yacl:3.9.7+26.3-fabric'],
-        cloth      : ['maven.modrinth:cloth-config:26.3.159+fabric'],
+        // Cloth Config 26.3.159, and the basic-math it nests (its colour type).
+        cloth      : ['maven.modrinth:cloth-config:26.3.159+fabric', 'me.shedaniel.cloth:basic-math:0.6.1'],
         midnightlib: ['maven.modrinth:midnightlib:1.10.0+26.3-fabric'],
         // Forge Config API Port 26.3.1 (Modrinth version id), and the NightConfig it nests.
         fcap       : ['maven.modrinth:forge-config-api-port:JpKvrr9J', 'com.electronwill.night-config:core:3.8.4',
@@ -49,6 +50,8 @@ repositories {
     // only on this Maven repository, so Gradle needs it to resolve Keybindery's runtime classpath.
     maven { url 'https://api.modrinth.com/maven' }
     maven { url 'https://maven.wispforest.io/releases/' }
+    // basic-math, which Cloth Config nests.
+    maven { url 'https://maven.shedaniel.me/' }
     // NightConfig, which Forge Config API Port nests, for its adapter's compile classpath.
     mavenCentral()
 }

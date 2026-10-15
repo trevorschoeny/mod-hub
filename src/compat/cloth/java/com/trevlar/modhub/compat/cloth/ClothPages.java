@@ -50,7 +50,8 @@ import java.util.function.Function;
  * if the entry reports no error, the entry's save pushes it into the mod and the screen's save runs
  * the mod's saving action. Cloth's Save button does the same for every entry at once.
  *
- * <p>Sub-categories become groups, nested ones named by their path. Colours, key bindings,
+ * <p>Sub-categories become groups, nested ones named by their path. Colours use Mod Hub's colour
+ * picker. Key bindings,
  * dropdowns, lists and multi-element entries send the mod to Cloth's screen, as does any entry
  * class Mod Hub doesn't know.
  */
@@ -131,7 +132,13 @@ final class ClothPages {
             case StringListEntry s -> new Control.Text(value(screen, s, s::setValue, resets));
             // EnumListEntry is a SelectionListEntry over the enum's constants.
             case SelectionListEntry<?> s -> selection(screen, (SelectionListEntry) s, resets);
-            case ColorEntry c -> new Control.Unsupported("colour");
+            case ColorEntry c -> {
+                Boolean alpha = field(c, ColorEntry.class, "alpha");
+                boolean a = alpha != null && alpha;
+                Value<Integer> v = value(screen, c, c::setValue, resets);
+                yield new Control.Color(Value.of(() -> a ? v.get() : v.get() & 0xFFFFFF, v::set,
+                        a ? v.defaultValue() : v.defaultValue() & 0xFFFFFF, v::available), a);
+            }
             case KeyCodeEntry k -> new Control.Unsupported("key binding");
             case DropdownBoxEntry<?> d -> new Control.Unsupported("dropdown");
             case AbstractListListEntry<?, ?, ?> l -> new Control.Unsupported("list");

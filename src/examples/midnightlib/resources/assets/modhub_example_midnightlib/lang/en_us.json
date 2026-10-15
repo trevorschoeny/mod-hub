@@ -10,5 +10,6 @@
   "modhub_example_midnightlib.midnightconfig.sparkles.label.tooltip": "Only while Particles is on.",
   "modhub_example_midnightlib.midnightconfig.range": "Range",
   "modhub_example_midnightlib.midnightconfig.volume": "Volume",
-  "modhub_example_midnightlib.midnightconfig.stack": "Stack size"
+  "modhub_example_midnightlib.midnightconfig.stack": "Stack size",
+  "modhub_example_midnightlib.midnightconfig.glow": "Glow colour"
 }

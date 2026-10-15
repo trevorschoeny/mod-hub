@@ -5,6 +5,8 @@ import com.trevlar.modhub.page.Control;
 import com.trevlar.modhub.page.Labels;
 import com.trevlar.modhub.page.Value;
 
+import com.trevlar.menukit.api.element.ColorField;
+
 import eu.midnightdust.lib.config.EntryInfo;
 import eu.midnightdust.lib.config.MidnightConfig;
 import eu.midnightdust.lib.config.MidnightConfigScreen;
@@ -40,7 +42,8 @@ import java.util.function.Function;
  *
  * <p>Categories become tabs in the order MidnightLib meets them. A field shown only when another
  * option has some value ({@code @Condition}) is shown greyed out while the condition doesn't hold,
- * rather than appearing and disappearing. Colours, file pickers, lists, and types MidnightLib itself
+ * rather than appearing and disappearing. Colours use Mod Hub's colour picker. File pickers, lists,
+ * and types MidnightLib itself
  * can't edit (long and friends) send the mod to MidnightLib's screen.
  */
 final class MidnightPages {
@@ -107,7 +110,15 @@ final class MidnightPages {
                     : new Control.NumberField<>(v, s -> parse(s, min, max, Double::parseDouble), String::valueOf);
         }
         if (t == String.class) {
-            if (e.isColor()) return new Control.Unsupported("colour");
+            if (e.isColor()) {
+                // Stored as "#rrggbb".
+                Value<String> hex = value(modid, info);
+                Integer def = ColorField.parseHex(hex.defaultValue(), false);
+                return new Control.Color(Value.of(() -> {
+                    Integer n = ColorField.parseHex(hex.get(), false);
+                    return n == null ? 0 : n;
+                }, n -> hex.set(ColorField.formatHex(n, false).toLowerCase(Locale.ROOT)), def == null ? 0 : def, hex::available), false);
+            }
             if (e.selectionMode() > -1) return new Control.Unsupported("file picker");
             return new Control.Text(value(modid, info), s -> s.length() <= e.width());
         }

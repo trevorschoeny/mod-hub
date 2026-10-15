@@ -2,7 +2,11 @@ package com.trevlar.modhub.page;
 
 import net.minecraft.network.chat.Component;
 
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -53,6 +57,28 @@ public sealed interface Control {
         public Text(Value<String> value) { this(value, s -> true); }
     }
 
+    /**
+     * A colour, {@code 0xRRGGBB}, or {@code 0xAARRGGBB} with {@code alpha}. A swatch that opens a
+     * colour picker.
+     */
+    record Color(Value<Integer> value, boolean alpha) implements Control {}
+
+    /**
+     * A library's own widget, drawn as it is in its row: a mod's custom YACL controller, or one
+     * Mod Hub has no control of its own for. {@code widget} makes it once; {@code place} moves it to
+     * its rectangle each frame (the widget only knows screen coordinates). {@code overflow} for a
+     * widget that opens a popup past its row, such as a dropdown's list. It edits its setting
+     * itself, so the adapter is what saves the change.
+     */
+    record Hosted<W extends GuiEventListener & Renderable>(Supplier<W> widget, Place<W> place, int width, int height,
+                                                            boolean overflow) implements Control {}
+
+    /** Puts a hosted widget at {@code x, y}, {@code width} by {@code height}, in screen coordinates. */
+    @FunctionalInterface
+    interface Place<W> {
+        void place(W widget, int x, int y, int width, int height);
+    }
+
     /** A button that runs something (YACL's ButtonOption, Cloth's link and action entries). */
     record Action(Component label, Runnable onPress) implements Control {}
 
@@ -60,9 +86,8 @@ public sealed interface Control {
     record Label() implements Control {}
 
     /**
-     * Something Mod Hub can't draw yet: a colour (until MenuKit has a colour control), a list, or a
-     * library's custom widget. Any one of these on a page sends the whole mod to its original screen,
-     * so nothing goes missing without saying.
+     * Something Mod Hub can't draw: a list, or a widget it can't host. Any one of these on a page
+     * sends the whole mod to its original screen, so nothing goes missing without saying.
      */
     record Unsupported(String what) implements Control {}
 }

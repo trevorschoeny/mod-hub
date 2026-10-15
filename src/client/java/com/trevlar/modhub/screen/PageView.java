@@ -2,12 +2,14 @@ package com.trevlar.modhub.screen;
 
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Checkbox;
+import com.trevlar.menukit.api.element.ColorField;
 import com.trevlar.menukit.api.element.Dropdown;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.Section;
 import com.trevlar.menukit.api.element.Slider;
 import com.trevlar.menukit.api.element.TextField;
 import com.trevlar.menukit.api.element.TextRole;
+import com.trevlar.menukit.api.element.WidgetHost;
 import com.trevlar.modhub.page.ConfigPage;
 import com.trevlar.modhub.page.Control;
 import com.trevlar.modhub.page.Value;
@@ -103,6 +105,14 @@ final class PageView {
                         .size(FIELD_WIDTH, 16).label(name)
                         .disabledWhen(unavailable(t.value())).build()), Body.CONTROL_ROW);
             }
+            case Control.Color c -> {
+                body.text(name, TextRole.BODY, tip);
+                body.row((y, v) -> List.of(ColorField.builder().at(0, y).size(40, 16).label(name).alpha(c.alpha())
+                        .state(() -> c.value().get(), n -> c.value().set(n))
+                        .disabledWhen(unavailable(c.value())).build()), Body.CONTROL_ROW);
+            }
+            // The library's widget draws its own name, as in the library's own screen.
+            case Control.Hosted<?> h -> body.row((y, v) -> List.of(hosted(h, y, tip)), h.height() + 4);
             case Control.Action a -> body.row((y, v) -> {
                 Button.Builder b = Button.builder().at(0, y).size(0, 16).label(a.label()).onClick(a.onPress());
                 if (tip != null) b.tooltip(tip);
@@ -126,6 +136,8 @@ final class PageView {
             case Control.NumberField f -> new Control.NumberField(h.watch(f.value(), name), f.parse(), f.format());
             case Control.Choice ch -> new Control.Choice(h.watch(ch.value(), name), ch.options(), ch.label());
             case Control.Text t -> new Control.Text(h.watch(t.value(), name), t.accepts());
+            case Control.Color col -> new Control.Color(h.watch(col.value(), name), col.alpha());
+            case Control.Hosted ho -> ho;
             case Control.Action a -> a;
             case Control.Label l -> l;
             case Control.Unsupported u -> u;
@@ -141,10 +153,22 @@ final class PageView {
             case Control.NumberField<?> f -> f.value();
             case Control.Choice<?> ch -> ch.value();
             case Control.Text t -> t.value();
+            case Control.Color col -> col.value();
+            case Control.Hosted<?> ho -> null;
             case Control.Action a -> null;
             case Control.Label l -> null;
             case Control.Unsupported u -> null;
         };
+    }
+
+    /** A library's widget in a MenuKit host, at its row. */
+    private static <W extends net.minecraft.client.gui.components.events.GuiEventListener & net.minecraft.client.gui.components.Renderable>
+    PanelElement hosted(Control.Hosted<W> h, int y, @Nullable Component tip) {
+        WidgetHost.Builder<W> b = WidgetHost.builder().widget(h.widget()).size(h.width(), h.height())
+                .place(h.place()::place);
+        if (h.overflow()) b.overflow();
+        if (tip != null) b.tooltip(tip);
+        return b.at(0, y).build();
     }
 
     private static <T> void choice(Body body, Component name, @Nullable Component tip, Control.Choice<T> c) {
