@@ -113,18 +113,13 @@ public final class ConfigScreen extends MKScreen {
         if (configurable.size() == 1) {
             ModInfo mod = configurable.getFirst();
             ConfigPage page = Pages.of(mod);
-            // One mod on its own has no mods to switch between: its page, without the tabs, unless
-            // its library splits it into categories, which then become the tabs. The panel scrolls
-            // when the page is taller than the screen.
+            // One mod on its own has no mods to switch between, unless its library splits it into
+            // categories, which then become the tabs. Otherwise it's the same tabbed page with no
+            // tab column: the same band, top and scrolling as every other config screen.
             if (page == null || page.categories().size() < 2) {
-                return Panel.builder("modhub:config")
-                        .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
-                        .position(PanelPosition.main())
-                        .elements(page(mod, top, history))   // replaces the list, so first
-                        .add(NameBar.of(entry.name(), 0))
-                        .build();
-            }
-            for (int i = 0; i < page.categories().size(); i++) {
+                tabs.tabColumn(false).tab(Tabs.tab(mod.id()).label(Component.literal(mod.name()))
+                        .body(() -> page(mod, 0, history)));
+            } else for (int i = 0; i < page.categories().size(); i++) {
                 ConfigPage.Category c = page.categories().get(i);
                 Component label = c.name() != null ? c.name() : Component.literal(mod.name());
                 tabs.tab(Tabs.tab("category" + i).label(label).body(() -> page(mod, page, List.of(c), false, 0, history)));
