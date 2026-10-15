@@ -24,6 +24,7 @@ base.archivesName = 'modhub'
 // the design doc.
 ext.compat = [
         yacl       : ['maven.modrinth:yacl:3.9.7+26.3-fabric'],
+        cloth      : ['maven.modrinth:cloth-config:26.3.159+fabric'],
         midnightlib: ['maven.modrinth:midnightlib:1.10.0+26.3-fabric'],
         // Forge Config API Port 26.3.1 (Modrinth version id), and the NightConfig it nests.
         fcap       : ['maven.modrinth:forge-config-api-port:JpKvrr9J', 'com.electronwill.night-config:core:3.8.4',
