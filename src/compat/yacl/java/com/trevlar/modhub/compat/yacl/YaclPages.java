@@ -23,6 +23,7 @@ import dev.isxander.yacl3.gui.controllers.TickBoxController;
 import dev.isxander.yacl3.gui.controllers.cycling.CyclingListController;
 import dev.isxander.yacl3.gui.controllers.dropdown.DropdownStringController;
 import dev.isxander.yacl3.gui.controllers.dropdown.EnumDropdownController;
+import dev.isxander.yacl3.gui.controllers.dropdown.ItemController;
 import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownController;
 import dev.isxander.yacl3.gui.controllers.slider.DoubleSliderController;
 import dev.isxander.yacl3.gui.controllers.slider.FloatSliderController;
@@ -57,8 +58,8 @@ import java.util.function.Function;
  * runs, then the option's flags, as YACL's own Save would. A flag asking for a game restart is shown
  * as a note on the row instead of a prompt on every change.
  *
- * <p>Controllers map onto Mod Hub's controls by class, a colour onto Mod Hub's colour picker.
- * Anything else (YACL's item picker, a mod's own controller) is YACL's own widget, hosted in its
+ * <p>Controllers map onto Mod Hub's controls by class, a colour onto Mod Hub's colour picker, an item onto MenuKit's item picker.
+ * Anything else (a mod's own controller) is YACL's own widget, hosted in its
  * row. Only a list sends the mod to YACL's screen.
  */
 final class YaclPages {
@@ -140,7 +141,8 @@ final class YaclPages {
             case EnumDropdownController<?> d -> enumDropdown((Option<Enum<?>>) o, config, d);
             case LabelController x -> new Control.Label();
             case ColorController x -> colour((Option<Color>) o, config, x.allowAlpha());
-            // Anything else (YACL's item picker, a mod's own controller) is YACL's own widget,
+            case ItemController x -> new Control.Item(value((Option<net.minecraft.world.item.Item>) o, config));
+            // Anything else (a mod's own controller) is YACL's own widget,
             // hosted in its row.
             default -> hosted(screen, config, o, c);
         };

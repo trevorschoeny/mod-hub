@@ -96,7 +96,7 @@ public final class YaclExample implements ModMenuApi {
                                 .binding(new Color(0x8044CC22, true), () -> tint, v -> tint = v)
                                 .controller(o -> ColorControllerBuilder.create(o).allowAlpha(true)).build())
                         .option(Option.<Item>createBuilder().name(Component.literal("Favourite item"))
-                                .description(OptionDescription.of(Component.literal("YACL's own item dropdown, hosted in its row.")))
+                                .description(OptionDescription.of(Component.literal("The item you like best.")))
                                 .binding(Items.DIAMOND, () -> favourite, v -> favourite = v)
                                 .controller(ItemControllerBuilder::create).build())
                         .option(Option.<Boolean>createBuilder().name(Component.literal("Custom widget"))

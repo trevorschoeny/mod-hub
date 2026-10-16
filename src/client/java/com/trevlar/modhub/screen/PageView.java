@@ -4,6 +4,7 @@ import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Checkbox;
 import com.trevlar.menukit.api.element.ColorField;
 import com.trevlar.menukit.api.element.Dropdown;
+import com.trevlar.menukit.api.element.ItemPicker;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.Section;
 import com.trevlar.menukit.api.element.Slider;
@@ -111,6 +112,12 @@ final class PageView {
                         .state(() -> c.value().get(), n -> c.value().set(n))
                         .disabledWhen(unavailable(c.value())).build()), Body.CONTROL_ROW);
             }
+            case Control.Item i -> {
+                body.text(name, TextRole.BODY, tip);
+                body.row((y, v) -> List.of(ItemPicker.builder().at(0, y).label(name)
+                        .state(i.value()::get, i.value()::set)
+                        .disabledWhen(unavailable(i.value())).build()), ItemPicker.SIZE + 4);
+            }
             // The library's widget draws its own name, as in the library's own screen.
             case Control.Hosted<?> h -> body.row((y, v) -> List.of(hosted(h, y, tip)), h.height() + 4);
             case Control.Action a -> body.row((y, v) -> {
@@ -137,6 +144,7 @@ final class PageView {
             case Control.Choice ch -> new Control.Choice(h.watch(ch.value(), name), ch.options(), ch.label());
             case Control.Text t -> new Control.Text(h.watch(t.value(), name), t.accepts());
             case Control.Color col -> new Control.Color(h.watch(col.value(), name), col.alpha());
+            case Control.Item i -> new Control.Item(h.watch(i.value(), name));
             case Control.Hosted ho -> ho;
             case Control.Action a -> a;
             case Control.Label l -> l;
@@ -154,6 +162,7 @@ final class PageView {
             case Control.Choice<?> ch -> ch.value();
             case Control.Text t -> t.value();
             case Control.Color col -> col.value();
+            case Control.Item i -> i.value();
             case Control.Hosted<?> ho -> null;
             case Control.Action a -> null;
             case Control.Label l -> null;

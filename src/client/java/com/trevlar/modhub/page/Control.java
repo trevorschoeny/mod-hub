@@ -63,6 +63,9 @@ public sealed interface Control {
      */
     record Color(Value<Integer> value, boolean alpha) implements Control {}
 
+    /** One item, the kind only ({@code Items.AIR} for none). A slot that opens MenuKit's item picker. */
+    record Item(Value<net.minecraft.world.item.Item> value) implements Control {}
+
     /**
      * A library's own widget, drawn as it is in its row: a mod's custom YACL controller, or one
      * Mod Hub has no control of its own for. {@code widget} makes it once; {@code place} moves it to
