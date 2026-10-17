@@ -88,9 +88,9 @@ public final class ModCard extends AbstractPanelElement {
     public void render(RenderContext ctx) {
         int x = ctx.originX() + childX, y = ctx.originY() + childY, w = width, h = getHeight();
         var g = ctx.graphics();
-        // A quiet frame on both looks: darker than the page on the options look, a grey line on
-        // the inventory's light panel.
-        boolean options = ctx.kind() == ScreenKind.OPTIONS;
+        // A quiet frame on both looks: darker than the page on the Default look, a grey line on
+        // the Panel look's light panel.
+        boolean options = ctx.kind() == ScreenKind.DEFAULT;
         g.fill(x, y, x + w, y + h, options ? 0x40000000 : 0x14000000);
         g.outline(x, y, w, h, options ? 0x30FFFFFF : 0xFF8B8B8B);
 

@@ -74,7 +74,7 @@ public final class ModListScreen extends MKScreen {
     private ModListScreen(@Nullable Screen parent, ScreenKind kind) {
         super(Component.literal("Mods"), kind, List.of(main(kind), done()));
         this.parent = parent;
-        if (kind == ScreenKind.CONTAINER) hideTitle();
+        if (kind == ScreenKind.PANEL) hideTitle();
         setReturnAction(() -> Minecraft.getInstance().gui.setScreen(parent));
     }
 
@@ -84,7 +84,7 @@ public final class ModListScreen extends MKScreen {
 
     /** The mod list over {@code parent}. Public for the Mod Menu API stand-in's {@code createModsScreen}. */
     public static ModListScreen create(@Nullable Screen parent) {
-        return new ModListScreen(parent, ModHubSettings.OPTIONS_LOOK.get() ? ScreenKind.OPTIONS : ScreenKind.CONTAINER);
+        return new ModListScreen(parent, ModHubSettings.OPTIONS_LOOK.get() ? ScreenKind.DEFAULT : ScreenKind.PANEL);
     }
 
     /** Builds the screen again over the same parent, on the next tick so no click loses its screen. */
@@ -127,7 +127,7 @@ public final class ModListScreen extends MKScreen {
             if (icon != null) tab.icon(icon::texture, icon.size(), 10);
             tabs.tab(tab);
         }
-        boolean options = kind == ScreenKind.OPTIONS;
+        boolean options = kind == ScreenKind.DEFAULT;
         if (!options) tabs.at(0, NameBar.HEIGHT + NameBar.GAP);
         Panel.Builder panel = Panel.builder("modhub:list")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)

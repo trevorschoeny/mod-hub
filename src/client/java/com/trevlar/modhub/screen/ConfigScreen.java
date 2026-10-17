@@ -97,12 +97,12 @@ public final class ConfigScreen extends MKScreen {
                 return;
             }
         }
-        ScreenKind kind = ModHubSettings.OPTIONS_LOOK.get() ? ScreenKind.OPTIONS : ScreenKind.CONTAINER;
+        ScreenKind kind = ModHubSettings.OPTIONS_LOOK.get() ? ScreenKind.DEFAULT : ScreenKind.PANEL;
         mc.gui.setScreen(new ConfigScreen(entry, parent, kind, History.SESSION));
     }
 
     private static Panel main(HubEntry entry, ScreenKind kind, History history) {
-        boolean options = kind == ScreenKind.OPTIONS;
+        boolean options = kind == ScreenKind.DEFAULT;
         List<ModInfo> configurable = entry.mods().stream().filter(ModInfo::configurable).toList();
         int top = NameBar.HEIGHT + TOP_ROOM;
         Tabs.Builder tabs = Tabs.builder()

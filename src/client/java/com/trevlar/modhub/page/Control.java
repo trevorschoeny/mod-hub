@@ -5,6 +5,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.function.Function;
@@ -16,8 +18,13 @@ import java.util.function.Predicate;
  */
 public sealed interface Control {
 
-    /** On or off. A checkbox inline with the row's name. */
-    record Toggle(Value<Boolean> value) implements Control {}
+    /**
+     * On or off. A checkbox inline with the row's name, or when {@code stateLabel} is given, a
+     * MenuKit toggle naming each state on its own face (a look switch, never a checkbox).
+     */
+    record Toggle(Value<Boolean> value, @Nullable Function<Boolean, Component> stateLabel) implements Control {
+        public Toggle(Value<Boolean> value) { this(value, null); }
+    }
 
     /**
      * A whole number in a range, as a slider. {@code step} 1 for every number; {@code format}

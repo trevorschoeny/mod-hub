@@ -3,12 +3,15 @@ package com.trevlar.modhub.api;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 
+import net.minecraft.network.chat.Component;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * One setting: a key in its mod's file, a type, a default and a side. Declared in common code
@@ -118,8 +121,10 @@ public abstract sealed class Setting<T> permits Setting.Bool, Setting.Int, Setti
 
     // The types
 
-    /** On or off. Drawn as a checkbox. */
+    /** On or off. Drawn as a checkbox, or as a MenuKit toggle naming each state when {@link #asToggle} marks it. */
     public static final class Bool extends Setting<Boolean> {
+        private @Nullable Function<Boolean, Component> toggleLabel;
+
         Bool(Settings owner, String key, boolean defaultValue) { super(owner, key, defaultValue); }
 
         @Override protected Boolean check(Boolean v) { return v != null ? v : defaultValue(); }
@@ -131,6 +136,18 @@ public abstract sealed class Setting<T> permits Setting.Bool, Setting.Int, Setti
         @Override protected JsonElement write(Boolean v) { return new JsonPrimitive(v); }
 
         @Override public Bool server() { super.server(); return this; }
+
+        /**
+         * Draws as a MenuKit toggle reading {@code label.apply(value)} on its face, instead of a
+         * checkbox. For a setting that is really a choice between two named states (a look switch),
+         * never a plain flag.
+         */
+        public Bool asToggle(Function<Boolean, Component> label) {
+            this.toggleLabel = label;
+            return this;
+        }
+
+        public @Nullable Function<Boolean, Component> toggleLabel() { return toggleLabel; }
     }
 
     /** A whole number between {@link #min} and {@link #max}. Drawn as a slider. */

@@ -29,7 +29,7 @@ final class Body {
     static final int CONTROL_ROW = 20;
     static final int GAP = 6;
 
-    /** A divider's colour on the inventory look; the options look draws vanilla's separator. */
+    /** A divider's colour on the Panel look; the Default look draws vanilla's separator. */
     private static final int LINE_COLOR = 0xFF8B8B8B;
 
     private final List<PanelElement> out = new ArrayList<>();

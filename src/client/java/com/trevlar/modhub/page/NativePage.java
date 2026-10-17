@@ -29,7 +29,7 @@ public final class NativePage {
         // Each setting reads and writes itself: set() checks the value, saves the file and tells
         // the mod's listeners.
         Control control = switch (s) {
-            case Setting.Bool b -> new Control.Toggle(Value.of(b::get, b::set, b.defaultValue()));
+            case Setting.Bool b -> new Control.Toggle(Value.of(b::get, b::set, b.defaultValue()), b.toggleLabel());
             case Setting.Int i -> new Control.IntSlider(Value.of(i::get, i::set, i.defaultValue()), i.min, i.max, 1);
             case Setting.Choice<?> c -> choice(c);
         };

@@ -76,6 +76,13 @@ final class PageView {
         Component name = r.name();
         Component tip = r.description();
         switch (watched(r.control(), r.name(), history)) {
+            case Control.Toggle t when t.stateLabel() != null -> body.row((y, v) -> {
+                com.trevlar.menukit.api.element.Toggle.Builder b = com.trevlar.menukit.api.element.Toggle.builder()
+                        .at(0, y).size(0, 16).label(() -> t.stateLabel().apply(t.value().get()))
+                        .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value()));
+                if (tip != null) b.tooltip(tip);
+                return List.of(b.build());
+            }, Body.CONTROL_ROW);
             case Control.Toggle t -> body.row((y, v) -> {
                 Checkbox.Builder c = Checkbox.builder().at(0, y).label(name)
                         .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value()));
@@ -137,7 +144,7 @@ final class PageView {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static Control watched(Control c, Component name, History h) {
         return switch (c) {
-            case Control.Toggle t -> new Control.Toggle(h.watch(t.value(), name));
+            case Control.Toggle t -> new Control.Toggle(h.watch(t.value(), name), t.stateLabel());
             case Control.IntSlider s -> new Control.IntSlider(h.watch(s.value(), name), s.min(), s.max(), s.step(), s.format());
             case Control.DecimalSlider s -> new Control.DecimalSlider(h.watch(s.value(), name), s.min(), s.max(), s.step(), s.format());
             case Control.NumberField f -> new Control.NumberField(h.watch(f.value(), name), f.parse(), f.format());

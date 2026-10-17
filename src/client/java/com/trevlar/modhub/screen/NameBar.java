@@ -9,9 +9,9 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
 /**
- * The inventory look's name: one bar across the top of the menu panel, the name at twice size and
+ * The Panel look's name: one bar across the top of the menu panel, the name at twice size and
  * bold, centred between two spacers. Inventory Plus's {@code SettingsMenu.nameBar}, so Mod Hub's
- * screens and IP's look the same in that look. The options look shows the screen's title instead.
+ * screens and IP's look the same in that look. The Default look shows the screen's title instead.
  */
 final class NameBar {
 
