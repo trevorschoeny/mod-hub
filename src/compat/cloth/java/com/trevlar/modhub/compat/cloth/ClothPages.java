@@ -9,20 +9,27 @@ import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.AbstractConfigScreen;
 import me.shedaniel.clothconfig2.gui.entries.AbstractListListEntry;
 import me.shedaniel.clothconfig2.gui.entries.AbstractNumberListEntry;
+import me.shedaniel.clothconfig2.gui.entries.BaseListCell;
+import me.shedaniel.clothconfig2.gui.entries.BaseListEntry;
 import me.shedaniel.clothconfig2.gui.entries.BooleanListEntry;
 import me.shedaniel.clothconfig2.gui.entries.ColorEntry;
 import me.shedaniel.clothconfig2.gui.entries.DoubleListEntry;
+import me.shedaniel.clothconfig2.gui.entries.DoubleListListEntry;
 import me.shedaniel.clothconfig2.gui.entries.DropdownBoxEntry;
 import me.shedaniel.clothconfig2.gui.entries.EmptyEntry;
 import me.shedaniel.clothconfig2.gui.entries.FloatListEntry;
+import me.shedaniel.clothconfig2.gui.entries.FloatListListEntry;
 import me.shedaniel.clothconfig2.gui.entries.IntegerListEntry;
+import me.shedaniel.clothconfig2.gui.entries.IntegerListListEntry;
 import me.shedaniel.clothconfig2.gui.entries.IntegerSliderEntry;
 import me.shedaniel.clothconfig2.gui.entries.KeyCodeEntry;
 import me.shedaniel.clothconfig2.gui.entries.LongListEntry;
+import me.shedaniel.clothconfig2.gui.entries.LongListListEntry;
 import me.shedaniel.clothconfig2.gui.entries.LongSliderEntry;
 import me.shedaniel.clothconfig2.gui.entries.MultiElementListEntry;
 import me.shedaniel.clothconfig2.gui.entries.SelectionListEntry;
 import me.shedaniel.clothconfig2.gui.entries.StringListEntry;
+import me.shedaniel.clothconfig2.gui.entries.StringListListEntry;
 import me.shedaniel.clothconfig2.gui.entries.SubCategoryListEntry;
 import me.shedaniel.clothconfig2.gui.entries.TextListEntry;
 import me.shedaniel.clothconfig2.gui.entries.TooltipListEntry;
@@ -33,6 +40,7 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,9 +59,9 @@ import java.util.function.Function;
  * the mod's saving action. Cloth's Save button does the same for every entry at once.
  *
  * <p>Sub-categories become groups, nested ones named by their path. Colours use Mod Hub's colour
- * picker. Key bindings,
- * dropdowns, lists and multi-element entries send the mod to Cloth's screen, as does any entry
- * class Mod Hub doesn't know.
+ * picker; lists of text and numbers are a row per element. Key bindings, dropdowns, nested lists
+ * and multi-element entries send the mod to Cloth's screen, as does any entry class Mod Hub
+ * doesn't know.
  */
 final class ClothPages {
 
@@ -141,6 +149,11 @@ final class ClothPages {
             }
             case KeyCodeEntry k -> new Control.Unsupported("key binding");
             case DropdownBoxEntry<?> d -> new Control.Unsupported("dropdown");
+            case StringListListEntry l -> list(screen, l, "", v -> new Control.Text(v), resets);
+            case IntegerListListEntry l -> numbers(screen, l, 0, Integer::parseInt, resets);
+            case LongListListEntry l -> numbers(screen, l, 0L, Long::parseLong, resets);
+            case FloatListListEntry l -> numbers(screen, l, 0f, Float::parseFloat, resets);
+            case DoubleListListEntry l -> numbers(screen, l, 0d, Double::parseDouble, resets);
             case AbstractListListEntry<?, ?, ?> l -> new Control.Unsupported("list");
             case MultiElementListEntry<?> m -> new Control.Unsupported("multi-element entry");
             default -> new Control.Unsupported("custom entry " + e.getClass().getSimpleName());
@@ -180,6 +193,65 @@ final class ClothPages {
                 return null;
             }
         }, String::valueOf);
+    }
+
+    /**
+     * A list entry: a row per element. A change puts the new list into the entry's cells, as
+     * Cloth's own reset button does (its private cells, each made by the entry from a value), and
+     * saves as any other entry does. A Cloth update that renames those sends the mod to Cloth's screen.
+     */
+    private static <T> Control list(AbstractConfigScreen screen, AbstractListListEntry<T, ?, ?> l, T fresh,
+                                    Function<Value<T>, Control> element, List<Runnable> resets) {
+        List<Object> cells = field(l, BaseListEntry.class, "cells");
+        List<Object> widgets = field(l, BaseListEntry.class, "widgets");
+        List<Object> narratables = field(l, BaseListEntry.class, "narratables");
+        Method make = method(BaseListEntry.class, "getFromValue", Object.class);
+        if (cells == null || widgets == null || narratables == null || make == null) return new Control.Unsupported("list");
+        Value<List<T>> v = value(screen, l, values -> {
+            widgets.removeAll(cells);
+            narratables.removeAll(cells);
+            cells.forEach(c -> ((BaseListCell) c).onDelete());
+            cells.clear();
+            for (T x : values) {
+                try {
+                    cells.add(make.invoke(l, x));
+                } catch (ReflectiveOperationException ex) {
+                    throw new IllegalStateException(ex);
+                }
+            }
+            cells.forEach(c -> ((BaseListCell) c).onAdd());
+            widgets.addAll(cells);
+            narratables.addAll(cells);
+        }, resets);
+        return new Control.ListOf<>(v, element, () -> fresh, 0, Integer.MAX_VALUE);
+    }
+
+    /** A list of numbers, each typed in, inside the entry's own limits. */
+    private static <N extends Number> Control numbers(AbstractConfigScreen screen, AbstractListListEntry<N, ?, ?> l, N zero,
+                                                      Function<String, N> parse, List<Runnable> resets) {
+        Number min = field(l, l.getClass(), "minimum"), max = field(l, l.getClass(), "maximum");
+        N fresh = min != null && zero.doubleValue() < min.doubleValue() ? parse.apply(String.valueOf(min)) : zero;
+        return list(screen, l, fresh, v -> new Control.NumberField<>(v, t -> {
+            try {
+                N x = parse.apply(t);
+                if (min != null && x.doubleValue() < min.doubleValue()) return null;
+                if (max != null && x.doubleValue() > max.doubleValue()) return null;
+                return x;
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }, String::valueOf), resets);
+    }
+
+    /** A private method of a Cloth class, or null if it isn't there. */
+    private static @Nullable Method method(Class<?> declaring, String name, Class<?>... params) {
+        try {
+            Method m = declaring.getDeclaredMethod(name, params);
+            m.setAccessible(true);
+            return m;
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return null;
+        }
     }
 
     /** A cycling choice: its values and their names, and set by moving its index. */

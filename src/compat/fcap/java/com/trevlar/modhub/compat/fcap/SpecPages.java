@@ -36,8 +36,8 @@ import java.util.function.Function;
  * value's own rule, set, and the file saved at once.
  *
  * <p>A Server config is only loaded while a world is open, and belongs to the server when playing
- * on one: its rows are greyed out then, as NeoForge's own screen has them. Lists send the mod to
- * its own screen.
+ * on one: its rows are greyed out then, as NeoForge's own screen has them. A list is a row per
+ * element; one whose elements Mod Hub can't draw sends the mod to its own screen.
  */
 final class SpecPages {
 
@@ -107,7 +107,7 @@ final class SpecPages {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static Control control(ModConfig config, ModConfigSpec spec, ModConfigSpec.ConfigValue<?> cv, ModConfigSpec.ValueSpec vs) {
-        if (vs instanceof ModConfigSpec.ListValueSpec) return new Control.Unsupported("list");
+        if (vs instanceof ModConfigSpec.ListValueSpec ls) return list(config, spec, (ModConfigSpec.ConfigValue<List<Object>>) cv, ls);
         ModConfigSpec.Range<?> range = vs.getRange();
         return switch (cv) {
             case ModConfigSpec.BooleanValue b -> new Control.Toggle(value(config, spec, b, vs));
@@ -135,6 +135,43 @@ final class SpecPages {
                 yield new Control.Unsupported(cv.getDefault() == null ? "value" : cv.getDefault().getClass().getSimpleName());
             }
         };
+    }
+
+    /**
+     * A list value: each element drawn by its type, checked against the list's element rule. A new
+     * element is the one the spec makes; with no maker, there's no knowing what a new one should be,
+     * so the mod's own screen opens.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Control list(ModConfig config, ModConfigSpec spec, ModConfigSpec.ConfigValue<List<Object>> cv,
+                                ModConfigSpec.ListValueSpec ls) {
+        java.util.function.Supplier<?> fresh = ls.getNewElementSupplier();
+        Object sample = fresh == null ? null : fresh.get();
+        Function<Value<Object>, Control> element = v -> switch (sample) {
+            case Boolean b -> new Control.Toggle((Value) v);
+            case Integer i -> new Control.NumberField<>((Value<Integer>) (Value) v, t -> element(t, ls, Integer::parseInt), String::valueOf);
+            case Long l -> new Control.NumberField<>((Value<Long>) (Value) v, t -> element(t, ls, Long::parseLong), String::valueOf);
+            case Double d -> new Control.NumberField<>((Value<Double>) (Value) v, t -> element(t, ls, Double::parseDouble), String::valueOf);
+            case String str -> new Control.Text((Value) v, ls::testElement);
+            case Enum<?> en -> new Control.Choice<>((Value<Enum>) (Value) v,
+                    Arrays.stream((Enum[]) en.getDeclaringClass().getEnumConstants()).filter(ls::testElement).toList(),
+                    e -> e instanceof TranslatableEnum t ? t.getTranslatedName() : Component.literal(e.name()));
+            case null, default -> new Control.Unsupported("list of " + (sample == null ? "values" : sample.getClass().getSimpleName()));
+        };
+        if (element.apply(Value.of(() -> sample, x -> {}, sample)) instanceof Control.Unsupported u) return u;
+        ModConfigSpec.Range<Integer> size = ls.getSizeRange();
+        return new Control.ListOf<>(value(config, spec, cv, ls), element, () -> fresh.get(),
+                size != null ? size.getMin() : 0, size != null ? size.getMax() : Integer.MAX_VALUE);
+    }
+
+    /** Typed text as a list element the spec accepts, or null while it isn't one. */
+    private static <N extends Number> @Nullable N element(String text, ModConfigSpec.ListValueSpec ls, Function<String, N> parse) {
+        try {
+            N n = parse.apply(text);
+            return ls.testElement(n) ? n : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

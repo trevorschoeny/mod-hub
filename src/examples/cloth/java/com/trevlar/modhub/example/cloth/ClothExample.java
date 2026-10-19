@@ -28,6 +28,8 @@ public final class ClothExample implements ModMenuApi {
     static Mode mode = Mode.GENTLE;
     static int saves;
     static int glow = 0x3FA7FF, tint = 0x8044CC22;
+    static List<String> greetings = List.of("Hello", "Hi");
+    static List<Integer> lucky = List.of(7, 13);
 
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
@@ -37,7 +39,7 @@ public final class ClothExample implements ModMenuApi {
                     .setSavingRunnable(() -> System.out.println("[example cloth] saved " + (++saves) + ": particles="
                             + particles + " mode=" + mode + " range=" + range + " stack=" + stack + " seed=" + seed
                             + " volume=" + volume + " greeting=" + greeting + " glow=" + Integer.toHexString(glow)
-                            + " tint=" + Integer.toHexString(tint)));
+                            + " tint=" + Integer.toHexString(tint) + " greetings=" + greetings + " lucky=" + lucky));
             ConfigEntryBuilder e = builder.entryBuilder();
             ConfigCategory general = builder.getOrCreateCategory(Component.literal("General"));
             general.addEntry(e.startTextDescription(Component.literal("Every change saves at once.")).build());
@@ -51,7 +53,11 @@ public final class ClothExample implements ModMenuApi {
                     .setSaveConsumer(v -> glow = v).build());
             general.addEntry(e.startAlphaColorField(Component.literal("Tint"), tint).setDefaultValue(0x8044CC22)
                     .setSaveConsumer(v -> tint = v).build());
+            general.addEntry(e.startStrList(Component.literal("Greetings"), greetings).setDefaultValue(List.of("Hello", "Hi"))
+                    .setTooltip(Component.literal("A Cloth list of text.")).setSaveConsumer(v -> greetings = v).build());
             ConfigCategory numbers = builder.getOrCreateCategory(Component.literal("Numbers"));
+            numbers.addEntry(e.startIntList(Component.literal("Lucky numbers"), lucky).setDefaultValue(List.of(7, 13))
+                    .setMin(1).setMax(99).setSaveConsumer(v -> lucky = v).build());
             numbers.addEntry(e.startIntSlider(Component.literal("Range"), range, 4, 64).setDefaultValue(16)
                     .setSaveConsumer(v -> range = v).build());
             numbers.addEntry(e.startDoubleField(Component.literal("Volume"), volume).setDefaultValue(0.5).setMin(0.0).setMax(1.0)

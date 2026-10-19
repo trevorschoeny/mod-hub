@@ -42,9 +42,9 @@ import java.util.function.Function;
  *
  * <p>Categories become tabs in the order MidnightLib meets them. A field shown only when another
  * option has some value ({@code @Condition}) is shown greyed out while the condition doesn't hold,
- * rather than appearing and disappearing. Colours use Mod Hub's colour picker. File pickers, lists,
- * and types MidnightLib itself
- * can't edit (long and friends) send the mod to MidnightLib's screen.
+ * rather than appearing and disappearing. Colours use Mod Hub's colour picker; a list is a row per
+ * element, each drawn as a field of its type would be. File pickers, and types MidnightLib itself
+ * can't edit (long and friends), send the mod to MidnightLib's screen.
  */
 final class MidnightPages {
 
@@ -83,36 +83,43 @@ final class MidnightPages {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static Control control(String modid, EntryInfo info) {
+        if (info.field.getType() == List.class) return list(modid, info);
+        return kind(modid, info, value(modid, info));
+    }
+
+    /**
+     * The control for a field of MidnightLib's type {@code info.dataType}, editing {@code v}: the
+     * field itself, or for a list field one element of it ({@code dataType} is then the element's).
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Control kind(String modid, EntryInfo info, Value v) {
         MidnightConfig.Entry e = info.entry;
-        if (info.field.getType() == List.class) return new Control.Unsupported("list");
         Class<?> t = info.dataType;
-        if (t == boolean.class) return new Control.Toggle(value(modid, info));
-        if (t == int.class) {
+        if (t == boolean.class || t == Boolean.class) return new Control.Toggle(v);
+        if (t == int.class || t == Integer.class) {
             int min = (int) e.min(), max = (int) e.max();
-            Value<Integer> v = value(modid, info);
             return e.isSlider()
                     ? new Control.IntSlider(v, min, max, 1)
-                    : new Control.NumberField<>(v, s -> parse(s, min, max, Integer::parseInt), String::valueOf);
+                    : new Control.NumberField<>((Value<Integer>) v, s -> parse(s, min, max, Integer::parseInt), String::valueOf);
         }
-        if (t == float.class) {
+        if (t == float.class || t == Float.class) {
             float min = (float) e.min(), max = (float) e.max();
-            Value<Float> v = value(modid, info);
-            if (!e.isSlider()) return new Control.NumberField<>(v, s -> parse(s, min, max, Float::parseFloat), String::valueOf);
-            Value<Double> d = Value.of(() -> (double) v.get(), x -> v.set(round(x, e.precision()).floatValue()),
-                    (double) v.defaultValue(), v::available);
+            Value<Float> f = v;
+            if (!e.isSlider()) return new Control.NumberField<>(f, s -> parse(s, min, max, Float::parseFloat), String::valueOf);
+            Value<Double> d = Value.of(() -> (double) f.get(), x -> f.set(round(x, e.precision()).floatValue()),
+                    (double) f.defaultValue(), f::available);
             return new Control.DecimalSlider(d, min, max, 1.0 / e.precision(), x -> Component.literal(String.valueOf(round(x, e.precision()))));
         }
-        if (t == double.class) {
+        if (t == double.class || t == Double.class) {
             double min = e.min(), max = e.max();
-            Value<Double> v = value(modid, info);
             return e.isSlider()
                     ? new Control.DecimalSlider(v, min, max, 1.0 / e.precision(), x -> Component.literal(String.valueOf(round(x, e.precision()))))
-                    : new Control.NumberField<>(v, s -> parse(s, min, max, Double::parseDouble), String::valueOf);
+                    : new Control.NumberField<>((Value<Double>) v, s -> parse(s, min, max, Double::parseDouble), String::valueOf);
         }
         if (t == String.class) {
             if (e.isColor()) {
                 // Stored as "#rrggbb".
-                Value<String> hex = value(modid, info);
+                Value<String> hex = v;
                 Integer def = ColorField.parseHex(hex.defaultValue(), false);
                 return new Control.Color(Value.of(() -> {
                     Integer n = ColorField.parseHex(hex.get(), false);
@@ -120,21 +127,46 @@ final class MidnightPages {
                 }, n -> hex.set(ColorField.formatHex(n, false).toLowerCase(Locale.ROOT)), def == null ? 0 : def, hex::available), false);
             }
             if (e.selectionMode() > -1) return new Control.Unsupported("file picker");
-            return new Control.Text(value(modid, info), s -> s.length() <= e.width());
+            return new Control.Text(v, s -> s.length() <= e.width());
         }
         if (t == Identifier.class) {
-            Value<Identifier> id = value(modid, info);
+            Value<Identifier> id = v;
             Value<String> asText = Value.of(() -> id.get() == null ? "" : id.get().toString(),
                     s -> id.set(Identifier.tryParse(s)), String.valueOf(id.defaultValue()), id::available);
             return new Control.Text(asText, s -> Identifier.tryParse(s) != null);
         }
         if (t.isEnum()) {
-            Value<Enum> v = value(modid, info);
             List<Enum> values = Arrays.asList((Enum[]) t.getEnumConstants());
-            return new Control.Choice<>(v, values, en -> enumName(modid, t, en));
+            return new Control.Choice<>((Value<Enum>) v, values, en -> enumName(modid, t, en));
         }
         // long, short, byte, char: MidnightLib's own screen has no editor for these either.
         return new Control.Unsupported(t.getSimpleName());
+    }
+
+    /**
+     * A list field: each element drawn as a field of its element type would be. A new element is
+     * that type's empty value, inside the field's limits.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Control list(String modid, EntryInfo info) {
+        Object fresh = fresh(info);
+        if (fresh == null) return new Control.Unsupported("list of " + info.dataType.getSimpleName());
+        Function<Value<Object>, Control> element = v -> kind(modid, info, v);
+        if (element.apply(Value.of(() -> fresh, x -> {}, fresh)) instanceof Control.Unsupported u) return u;
+        return new Control.ListOf<>((Value<List<Object>>) (Value) value(modid, info), element, () -> fresh, 0, Integer.MAX_VALUE);
+    }
+
+    /** A new list element of the field's element type, or null for a type Mod Hub can't start one of. */
+    private static @Nullable Object fresh(EntryInfo info) {
+        Class<?> t = info.dataType;
+        double zero = Math.max(info.entry.min(), Math.min(info.entry.max(), 0));
+        if (t == String.class) return info.entry.isColor() ? "#ffffff" : "";
+        if (t == Boolean.class || t == boolean.class) return false;
+        if (t == Integer.class || t == int.class) return (int) zero;
+        if (t == Float.class || t == float.class) return (float) zero;
+        if (t == Double.class || t == double.class) return zero;
+        if (t.isEnum()) return t.getEnumConstants()[0];
+        return null;
     }
 
     /**

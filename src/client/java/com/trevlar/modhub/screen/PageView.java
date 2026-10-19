@@ -5,6 +5,7 @@ import com.trevlar.menukit.api.element.Checkbox;
 import com.trevlar.menukit.api.element.ColorField;
 import com.trevlar.menukit.api.element.Dropdown;
 import com.trevlar.menukit.api.element.ItemPicker;
+import com.trevlar.menukit.api.element.ListView;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.Section;
 import com.trevlar.menukit.api.element.Slider;
@@ -20,10 +21,12 @@ import net.minecraft.network.chat.Component;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Draws a {@link ConfigPage}'s rows into a {@link Body}: the one place a control kind becomes
@@ -75,56 +78,14 @@ final class PageView {
     private static void row(Body body, ConfigPage.Row r, History history) {
         Component name = r.name();
         Component tip = r.description();
-        switch (watched(r.control(), r.name(), history)) {
-            case Control.Toggle t when t.stateLabel() != null -> body.row((y, v) -> {
-                com.trevlar.menukit.api.element.Toggle.Builder b = com.trevlar.menukit.api.element.Toggle.builder()
-                        .at(0, y).size(0, 16).label(() -> t.stateLabel().apply(t.value().get()))
+        Control c = watched(r.control(), r.name(), history);
+        switch (c) {
+            case Control.Toggle t -> body.row((y, v) -> {
+                Checkbox.Builder b = Checkbox.builder().at(0, y).label(name)
                         .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value()));
                 if (tip != null) b.tooltip(tip);
                 return List.of(b.build());
-            }, Body.CONTROL_ROW);
-            case Control.Toggle t -> body.row((y, v) -> {
-                Checkbox.Builder c = Checkbox.builder().at(0, y).label(name)
-                        .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value()));
-                if (tip != null) c.tooltip(tip);
-                return List.of(c.build());
             }, Body.TEXT_ROW + 4);
-            case Control.IntSlider s -> {
-                body.text(name, TextRole.BODY, tip);
-                body.row((y, v) -> List.of(Slider.ofInts(s.min(), s.max()).at(0, y).size(SLIDER_WIDTH, 16)
-                        .state(s.value()::get, n -> s.value().set(snap(n, s.min(), s.step())))
-                        .label(s.format())
-                        .disabledWhen(unavailable(s.value())).build()), Body.CONTROL_ROW);
-            }
-            case Control.DecimalSlider s -> {
-                body.text(name, TextRole.BODY, tip);
-                body.row((y, v) -> List.of(decimal(s).at(0, y).size(SLIDER_WIDTH, 16)
-                        .disabledWhen(unavailable(s.value())).build()), Body.CONTROL_ROW);
-            }
-            case Control.NumberField<?> f -> {
-                body.text(name, TextRole.BODY, tip);
-                body.row((y, v) -> List.of(numberField(f).at(0, y).size(FIELD_WIDTH, 16)
-                        .disabledWhen(unavailable(f.value())).build()), Body.CONTROL_ROW);
-            }
-            case Control.Choice<?> c -> choice(body, name, tip, c);
-            case Control.Text t -> {
-                body.text(name, TextRole.BODY, tip);
-                body.row((y, v) -> List.of(drafted(t.value(), t.accepts(), s -> s, s -> s).at(0, y)
-                        .size(FIELD_WIDTH, 16).label(name)
-                        .disabledWhen(unavailable(t.value())).build()), Body.CONTROL_ROW);
-            }
-            case Control.Color c -> {
-                body.text(name, TextRole.BODY, tip);
-                body.row((y, v) -> List.of(ColorField.builder().at(0, y).size(40, 16).label(name).alpha(c.alpha())
-                        .state(() -> c.value().get(), n -> c.value().set(n))
-                        .disabledWhen(unavailable(c.value())).build()), Body.CONTROL_ROW);
-            }
-            case Control.Item i -> {
-                body.text(name, TextRole.BODY, tip);
-                body.row((y, v) -> List.of(ItemPicker.builder().at(0, y).label(name)
-                        .state(i.value()::get, i.value()::set)
-                        .disabledWhen(unavailable(i.value())).build()), ItemPicker.SIZE + 4);
-            }
             // The library's widget draws its own name, as in the library's own screen.
             case Control.Hosted<?> h -> body.row((y, v) -> List.of(hosted(h, y, tip)), h.height() + 4);
             case Control.Action a -> body.row((y, v) -> {
@@ -136,8 +97,116 @@ final class PageView {
             // Never reached: a page with one of these isn't drawn (ConfigPage.drawable), the mod's
             // own screen opens instead. Kept as a line so a slip shows rather than vanishes.
             case Control.Unsupported u -> body.text(Component.literal(name.getString() + " (" + u.what() + ")"), TextRole.MUTED);
+            // A list grows as rows are added; MenuKit's reflow pushes what's below down by its height.
+            case Control.ListOf<?> l -> {
+                body.text(name, TextRole.BODY, tip);
+                body.row((y, v) -> List.of(list(l, name, y)), Body.GAP);
+            }
+            // The rest sit under their name.
+            default -> {
+                body.text(name, TextRole.BODY, tip);
+                body.row((y, v) -> List.of(field(c, name, y)), c instanceof Control.Item ? ItemPicker.SIZE + 4 : Body.CONTROL_ROW);
+            }
         }
         if (r.note() != null) body.text(r.note(), TextRole.MUTED);
+    }
+
+    /**
+     * A control's own element, at {@code y}: what sits under its name on the page, or alone in a
+     * list's row. For the kinds that edit inline (a toggle here is a bare checkbox, for a list row).
+     */
+    private static PanelElement field(Control c, Component name, int y) {
+        return switch (c) {
+            case Control.Toggle t -> Checkbox.builder().at(0, y)
+                    .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value())).build();
+            case Control.IntSlider s -> Slider.ofInts(s.min(), s.max()).at(0, y).size(SLIDER_WIDTH, 16)
+                    .state(s.value()::get, n -> s.value().set(snap(n, s.min(), s.step())))
+                    .label(s.format())
+                    .disabledWhen(unavailable(s.value())).build();
+            case Control.DecimalSlider s -> decimal(s).at(0, y).size(SLIDER_WIDTH, 16)
+                    .disabledWhen(unavailable(s.value())).build();
+            case Control.NumberField<?> f -> numberField(f).at(0, y).size(FIELD_WIDTH, 16)
+                    .disabledWhen(unavailable(f.value())).build();
+            case Control.Choice<?> ch -> choice(ch, y);
+            case Control.Text t -> drafted(t.value(), t.accepts(), s -> s, s -> s).at(0, y)
+                    .size(FIELD_WIDTH, 16).label(name)
+                    .disabledWhen(unavailable(t.value())).build();
+            case Control.Color col -> ColorField.builder().at(0, y).size(40, 16).label(name).alpha(col.alpha())
+                    .state(() -> col.value().get(), n -> col.value().set(n))
+                    .disabledWhen(unavailable(col.value())).build();
+            case Control.Item i -> ItemPicker.builder().at(0, y).label(name)
+                    .state(i.value()::get, i.value()::set)
+                    .disabledWhen(unavailable(i.value())).build();
+            default -> throw new IllegalArgumentException("not an inline control: " + c);
+        };
+    }
+
+    /**
+     * A list option as a MenuKit list: a row per element, its control with up, down and a remove
+     * cross beside it, and "+ Add" above. Elements can repeat, so rows are keyed by an id handed
+     * out here for as long as the screen is open, kept in step with the list's order: a row edits
+     * the element at its id's place. A change made elsewhere (Reset to Defaults, undo) that changes
+     * the length gives the rows at the end new ids; rows read their value by place, so they show
+     * it whatever their id.
+     */
+    private static <T> PanelElement list(Control.ListOf<T> l, Component name, int y) {
+        Value<List<T>> list = l.value();
+        List<Long> ids = new ArrayList<>();
+        long[] next = {0};
+        Supplier<List<Long>> items = () -> {
+            int size = list.get().size();
+            while (ids.size() < size) ids.add(next[0]++);
+            while (ids.size() > size) ids.removeLast();
+            return List.copyOf(ids);
+        };
+        return ListView.<Long>builder()
+                .items(items).key((Long id) -> id).at(0, y)
+                .row(id -> field(l.element().apply(element(list, ids, id, l.newElement().get())), name, 0))
+                .add(Component.literal("+ Add"), () -> {
+                    List<T> now = new ArrayList<>(list.get());
+                    now.add(l.newElement().get());
+                    list.set(now);
+                })
+                .addDisabledWhen(() -> list.get().size() >= l.max())
+                // ponytail: at the minimum length the cross does nothing; a greyed cross needs a removeDisabledWhen from MenuKit.
+                .remove(id -> {
+                    int at = ids.indexOf(id);
+                    if (at < 0 || list.get().size() <= l.min()) return;
+                    List<T> now = new ArrayList<>(list.get());
+                    now.remove(at);
+                    ids.remove(at);
+                    list.set(now);
+                })
+                .move((id, to) -> {
+                    int from = ids.indexOf(id);
+                    if (from < 0) return;
+                    List<T> now = new ArrayList<>(list.get());
+                    now.add(to, now.remove(from));
+                    ids.add(to, ids.remove(from));
+                    list.set(now);
+                })
+                .controlsInRows()
+                .disabledWhen(unavailable(list))
+                .build();
+    }
+
+    /**
+     * One element of a list as a value: the element at the id's place; set puts a new list with it
+     * replaced. Its default is a new element's.
+     */
+    private static <T> Value<T> element(Value<List<T>> list, List<Long> ids, long id, T fresh) {
+        java.util.function.IntSupplier at = () -> ids.indexOf(id);
+        return Value.of(() -> {
+            int i = at.getAsInt();
+            List<T> now = list.get();
+            return i >= 0 && i < now.size() ? now.get(i) : fresh;   // a row on its way out
+        }, v -> {
+            int i = at.getAsInt();
+            List<T> now = new ArrayList<>(list.get());
+            if (i < 0 || i >= now.size()) return;
+            now.set(i, v);
+            list.set(now);
+        }, fresh, list::available);
     }
 
     /** The control with its value recorded by the tab's undo history; the same control otherwise. */
@@ -152,6 +221,8 @@ final class PageView {
             case Control.Text t -> new Control.Text(h.watch(t.value(), name), t.accepts());
             case Control.Color col -> new Control.Color(h.watch(col.value(), name), col.alpha());
             case Control.Item i -> new Control.Item(h.watch(i.value(), name));
+            // Watched as a copy, so the history's before and after aren't the same live list.
+            case Control.ListOf lo -> new Control.ListOf(h.watch(copying(lo.value()), name), lo.element(), lo.newElement(), lo.min(), lo.max());
             case Control.Hosted ho -> ho;
             case Control.Action a -> a;
             case Control.Label l -> l;
@@ -170,6 +241,7 @@ final class PageView {
             case Control.Text t -> t.value();
             case Control.Color col -> col.value();
             case Control.Item i -> i.value();
+            case Control.ListOf<?> lo -> lo.value();
             case Control.Hosted<?> ho -> null;
             case Control.Action a -> null;
             case Control.Label l -> null;
@@ -187,14 +259,18 @@ final class PageView {
         return b.at(0, y).build();
     }
 
-    private static <T> void choice(Body body, Component name, @Nullable Component tip, Control.Choice<T> c) {
-        body.text(name, TextRole.BODY, tip);
-        body.row((y, v) -> List.of(Dropdown.<T>builder().at(0, y).size(DROPDOWN_WIDTH, 16)
+    private static <T> PanelElement choice(Control.Choice<T> c, int y) {
+        return Dropdown.<T>builder().at(0, y).size(DROPDOWN_WIDTH, 16)
                 .items(c.options())
                 .label(c.label())
                 .state(c.value()::get, c.value()::set)
                 .disabledWhen(unavailable(c.value()))
-                .build()), Body.CONTROL_ROW);
+                .build();
+    }
+
+    /** A list value whose get hands out a copy. */
+    private static <T> Value<List<T>> copying(Value<List<T>> v) {
+        return Value.of(() -> new ArrayList<>(v.get()), v::set, v.defaultValue(), v::available);
     }
 
     /** A slider over the fraction 0..1, read and written through the decimal's range and step. */

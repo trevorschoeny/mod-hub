@@ -6,6 +6,7 @@ import com.terraformersmc.modmenu.api.ModMenuApi;
 import dev.isxander.yacl3.api.ButtonOption;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.LabelOption;
+import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionFlag;
@@ -33,6 +34,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
 import java.awt.Color;
+import java.util.List;
 
 /**
  * A pretend mod whose settings screen is built with YACL, one of each option the YACL adapter draws,
@@ -64,6 +66,7 @@ public final class YaclExample implements ModMenuApi {
     static int saves;
     static Color glow = new Color(0x3FA7FF), tint = new Color(0x8044CC22, true);
     static Item favourite = Items.DIAMOND;
+    static List<String> greetings = List.of("Hello", "Hi");
     static boolean custom = true;
 
     @Override
@@ -125,11 +128,15 @@ public final class YaclExample implements ModMenuApi {
                                         .binding("Hello", () -> greeting, v -> greeting = v)
                                         .controller(StringControllerBuilder::create).build())
                                 .build())
+                        .group(ListOption.<String>createBuilder().name(Component.literal("Greetings"))
+                                .description(OptionDescription.of(Component.literal("A YACL list of text.")))
+                                .binding(List.of("Hello", "Hi"), () -> greetings, v -> greetings = List.copyOf(v))
+                                .controller(StringControllerBuilder::create).initial("").build())
                         .build())
                 .save(() -> System.out.println("[example yacl] saved " + (++saves) + ": particles=" + particles
                         + " sounds=" + sounds + " mode=" + mode + " fallback=" + fallback + " range=" + range
                         + " volume=" + volume + " stack=" + stack + " greeting=" + greeting + " glow=" + Integer.toHexString(glow.getRGB())
-                + " tint=" + Integer.toHexString(tint.getRGB()) + " favourite=" + favourite + " custom=" + custom))
+                + " tint=" + Integer.toHexString(tint.getRGB()) + " favourite=" + favourite + " custom=" + custom + " greetings=" + greetings))
                 .build()
                 .generateScreen(parent);
     }

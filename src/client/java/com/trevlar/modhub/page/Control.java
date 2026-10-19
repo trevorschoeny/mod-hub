@@ -74,6 +74,17 @@ public sealed interface Control {
     record Item(Value<net.minecraft.world.item.Item> value) implements Control {}
 
     /**
+     * A list of values: a row per element, each the element's own control, with add, remove and
+     * up and down. Every change (an add, a remove, a move, an edit in a row) sets the whole list,
+     * a new one. {@code element} makes a row's control over one element's value, of a kind that
+     * edits inline (not a list, an action, a label, a hosted widget, or {@link Unsupported}: the
+     * adapter sends those to the mod's own screen instead). Add puts {@code newElement} at the end.
+     * The list stays between {@code min} and {@code max} long.
+     */
+    record ListOf<T>(Value<List<T>> value, Function<Value<T>, Control> element, Supplier<T> newElement,
+                     int min, int max) implements Control {}
+
+    /**
      * A library's own widget, drawn as it is in its row: a mod's custom YACL controller, or one
      * Mod Hub has no control of its own for. {@code widget} makes it once; {@code place} moves it to
      * its rectangle each frame (the widget only knows screen coordinates). {@code overflow} for a

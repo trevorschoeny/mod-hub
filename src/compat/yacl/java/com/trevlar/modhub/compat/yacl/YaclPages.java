@@ -8,6 +8,7 @@ import dev.isxander.yacl3.api.ButtonOption;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.Controller;
 import dev.isxander.yacl3.api.ListOption;
+import dev.isxander.yacl3.api.ListOptionEntry;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionEventListener;
 import dev.isxander.yacl3.api.OptionFlag;
@@ -60,7 +61,8 @@ import java.util.function.Function;
  *
  * <p>Controllers map onto Mod Hub's controls by class, a colour onto Mod Hub's colour picker, an item onto MenuKit's item picker.
  * Anything else (a mod's own controller) is YACL's own widget, hosted in its
- * row. Only a list sends the mod to YACL's screen.
+ * row. A list's elements are drawn with the same controls; a list of anything else sends the mod
+ * to YACL's screen.
  */
 final class YaclPages {
 
@@ -76,6 +78,12 @@ final class YaclPages {
         for (ConfigCategory c : config.categories()) {
             List<ConfigPage.Block> blocks = new ArrayList<>();
             for (OptionGroup g : c.groups()) {
+                // A list is a group in YACL (its entries are its options), and one row here.
+                if (g instanceof ListOption<?> list) {
+                    all.add(list);
+                    blocks.add(row(yacl, config, list));
+                    continue;
+                }
                 List<ConfigPage.Row> rows = new ArrayList<>();
                 for (Option<?> o : g.options()) {
                     all.add(o);
@@ -105,52 +113,79 @@ final class YaclPages {
         return new ConfigPage.Row(o.name(), text(o.description().text()), note, control(screen, config, o));
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static Control control(YACLScreen screen, YetAnotherConfigLib config, Option<?> o) {
         if (o instanceof ButtonOption b) {
             return new Control.Action(b.name(), () -> b.action().accept(screen, b));
         }
-        if (o instanceof ListOption<?>) return new Control.Unsupported("list");
+        if (o instanceof ListOption<?> list) return list(config, (ListOption<Object>) list);
         Controller<?> c = o.controller();
+        Control k = kind(c, value((Option<Object>) o, config));
+        // Anything else (a mod's own controller) is YACL's own widget, hosted in its row.
+        return k != null ? k : hosted(screen, config, o, c);
+    }
+
+    /**
+     * The control for a controller, editing {@code v}: an option's own value, or one element of a
+     * list. Null for a controller Mod Hub has no control of its own for.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static @Nullable Control kind(Controller<?> c, Value v) {
         return switch (c) {
-            case BooleanController x -> new Control.Toggle(value((Option<Boolean>) o, config));
-            case TickBoxController x -> new Control.Toggle(value((Option<Boolean>) o, config));
-            case IntegerSliderController s -> new Control.IntSlider(value((Option<Integer>) o, config),
+            case BooleanController x -> new Control.Toggle(v);
+            case TickBoxController x -> new Control.Toggle(v);
+            case IntegerSliderController s -> new Control.IntSlider(v,
                     (int) s.min(), (int) s.max(), Math.max(1, (int) s.interval()),
                     formatter(s, IntegerSliderController.class, n -> Component.literal(String.valueOf(n))));
-            case LongSliderController s -> decimal(as((Option<Long>) o, config, Number::longValue), s.min(), s.max(), s.interval(),
+            case LongSliderController s -> decimal(as((Value<Long>) v, Number::longValue), s.min(), s.max(), s.interval(),
                     formatter(s, LongSliderController.class, (Long n) -> Component.literal(String.valueOf(n))), Math::round);
-            case FloatSliderController s -> decimal(as((Option<Float>) o, config, Number::floatValue), s.min(), s.max(), s.interval(),
+            case FloatSliderController s -> decimal(as((Value<Float>) v, Number::floatValue), s.min(), s.max(), s.interval(),
                     formatter(s, FloatSliderController.class, (Float n) -> Component.literal(trim(n))), d -> (float) (double) d);
-            case DoubleSliderController s -> decimal(value((Option<Double>) o, config), s.min(), s.max(), s.interval(),
+            case DoubleSliderController s -> decimal(v, s.min(), s.max(), s.interval(),
                     formatter(s, DoubleSliderController.class, (Double n) -> Component.literal(trim(n))), d -> d);
-            case IntegerFieldController f -> new Control.NumberField<>(value((Option<Integer>) o, config),
+            case IntegerFieldController f -> new Control.NumberField<>((Value<Integer>) v,
                     t -> parse(t, f.min(), f.max(), Integer::parseInt), String::valueOf);
-            case LongFieldController f -> new Control.NumberField<>(value((Option<Long>) o, config),
+            case LongFieldController f -> new Control.NumberField<>((Value<Long>) v,
                     t -> parse(t, f.min(), f.max(), Long::parseLong), String::valueOf);
-            case FloatFieldController f -> new Control.NumberField<>(value((Option<Float>) o, config),
+            case FloatFieldController f -> new Control.NumberField<>((Value<Float>) v,
                     t -> parse(t, f.min(), f.max(), Float::parseFloat), String::valueOf);
-            case DoubleFieldController f -> new Control.NumberField<>(value((Option<Double>) o, config),
+            case DoubleFieldController f -> new Control.NumberField<>((Value<Double>) v,
                     t -> parse(t, f.min(), f.max(), Double::parseDouble), String::valueOf);
-            case StringController x -> new Control.Text(value((Option<String>) o, config));
+            case StringController x -> new Control.Text(v);
             case DropdownStringController d -> d.allowAnyValue
-                    ? new Control.Text(value((Option<String>) o, config))
-                    : new Control.Choice<>(value((Option<String>) o, config), d.getAllowedValues(), Component::literal);
+                    ? new Control.Text(v)
+                    : new Control.Choice<>((Value<String>) v, d.getAllowedValues(), Component::literal);
             // EnumController is a CyclingListController too, with the enum's constants as its values.
-            case CyclingListController<?> x -> cycling((Option<Object>) o, config, x);
-            case EnumDropdownController<?> d -> enumDropdown((Option<Enum<?>>) o, config, d);
+            case CyclingListController<?> x -> cycling(v, x);
+            case EnumDropdownController<?> d -> enumDropdown(v, d);
             case LabelController x -> new Control.Label();
-            case ColorController x -> colour((Option<Color>) o, config, x.allowAlpha());
-            case ItemController x -> new Control.Item(value((Option<net.minecraft.world.item.Item>) o, config));
-            // Anything else (a mod's own controller) is YACL's own widget,
-            // hosted in its row.
-            default -> hosted(screen, config, o, c);
+            case ColorController x -> colour(v, x.allowAlpha());
+            case ItemController x -> new Control.Item(v);
+            default -> null;
         };
     }
 
+    /**
+     * A list option: each element's control is the one its entry's controller maps to. To learn
+     * which, and what a new element starts as, an entry is made as YACL's own add button makes one,
+     * and taken out again. Elements whose controller Mod Hub can't draw inline send the mod to
+     * YACL's screen.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Control list(YetAnotherConfigLib config, ListOption<Object> list) {
+        ListOptionEntry<Object> probe = list.insertNewEntry();
+        Object initial = probe.pendingValue();
+        Controller<Object> c = probe.controller();
+        list.removeEntry(probe);
+        Control sample = kind(c, Value.of(() -> initial, x -> {}, initial));
+        if (sample == null || sample instanceof Control.Label || sample instanceof Control.Unsupported) return new Control.Unsupported("list of " + c.getClass().getSimpleName());
+        int max = list.maximumNumberOfEntries() > 0 ? list.maximumNumberOfEntries() : Integer.MAX_VALUE;
+        return new Control.ListOf<>((Value<List<Object>>) (Value) value(list, config), v -> kind(c, v), () -> initial,
+                list.minimumNumberOfEntries(), max);
+    }
+
     /** A {@code java.awt.Color} option as a Mod Hub colour: {@code 0xAARRGGBB}, or {@code 0xRRGGBB} without alpha. */
-    private static Control colour(Option<Color> o, YetAnotherConfigLib config, boolean alpha) {
-        Value<Color> v = value(o, config);
+    private static Control colour(Value<Color> v, boolean alpha) {
         return new Control.Color(Value.of(() -> argb(v.get(), alpha), n -> v.set(new Color(alpha ? n : n | 0xFF000000, true)),
                 argb(v.defaultValue(), alpha), v::available), alpha);
     }
@@ -198,8 +233,7 @@ final class YaclPages {
     }
 
     /** A float or long option as a double value, for the decimal slider. */
-    private static <N extends Number> Value<Double> as(Option<N> o, YetAnotherConfigLib config, Function<Double, N> back) {
-        Value<N> v = value(o, config);
+    private static <N extends Number> Value<Double> as(Value<N> v, Function<Double, N> back) {
         return Value.of(() -> v.get().doubleValue(), d -> v.set(back.apply(d)), v.defaultValue().doubleValue(), v::available);
     }
 
@@ -218,21 +252,21 @@ final class YaclPages {
         return f == null ? fallback : f::format;
     }
 
-    private static <T> Control cycling(Option<T> o, YetAnotherConfigLib config, CyclingListController<?> c) {
+    private static <T> Control cycling(Value<T> v, CyclingListController<?> c) {
         // The values and their names are private fields of the controller; read them, and treat
         // the option as unsupported if a YACL update has renamed them.
         List<T> values = field(c, CyclingListController.class, "values");
         ValueFormatter<T> format = field(c, CyclingListController.class, "valueFormatter");
         if (values == null || format == null) return new Control.Unsupported("cycling list");
-        return new Control.Choice<>(value(o, config), List.copyOf(values), format::format);
+        return new Control.Choice<>(v, List.copyOf(values), format::format);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static Control enumDropdown(Option<Enum<?>> o, YetAnotherConfigLib config, EnumDropdownController<?> d) {
+    private static Control enumDropdown(Value<Enum<?>> v, EnumDropdownController<?> d) {
         ValueFormatter format = field(d, EnumDropdownController.class, "formatter");
         if (format == null) return new Control.Unsupported("enum dropdown");
-        List<Enum<?>> values = Arrays.asList(o.binding().defaultValue().getDeclaringClass().getEnumConstants());
-        return new Control.Choice<>(value(o, config), values, e -> format.format(e));
+        List<Enum<?>> values = Arrays.asList(v.defaultValue().getDeclaringClass().getEnumConstants());
+        return new Control.Choice<>(v, values, e -> format.format(e));
     }
 
     /** A private field of a YACL class, or null if it isn't there. */
