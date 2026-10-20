@@ -80,6 +80,15 @@ final class PageView {
         Component tip = r.description();
         Control c = watched(r.control(), r.name(), history);
         switch (c) {
+            // A look switch (stateLabel given) names each state on its own face, as a MenuKit
+            // toggle; every other bool is a checkbox inline with its name.
+            case Control.Toggle t when t.stateLabel() != null -> body.row((y, v) -> {
+                com.trevlar.menukit.api.element.Toggle.Builder b = com.trevlar.menukit.api.element.Toggle.builder()
+                        .at(0, y).size(0, 16).label(() -> t.stateLabel().apply(t.value().get()))
+                        .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value()));
+                if (tip != null) b.tooltip(tip);
+                return List.of(b.build());
+            }, Body.CONTROL_ROW);
             case Control.Toggle t -> body.row((y, v) -> {
                 Checkbox.Builder b = Checkbox.builder().at(0, y).label(name)
                         .state(t.value()::get, t.value()::set).disabledWhen(unavailable(t.value()));
