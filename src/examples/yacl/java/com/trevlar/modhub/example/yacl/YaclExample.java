@@ -131,7 +131,7 @@ public final class YaclExample implements ModMenuApi {
                         .group(ListOption.<String>createBuilder().name(Component.literal("Greetings"))
                                 .description(OptionDescription.of(Component.literal("A YACL list of text.")))
                                 .binding(List.of("Hello", "Hi"), () -> greetings, v -> greetings = List.copyOf(v))
-                                .controller(StringControllerBuilder::create).initial("").build())
+                                .controller(StringControllerBuilder::create).initial("").minimumNumberOfEntries(1).build())
                         .build())
                 .save(() -> System.out.println("[example yacl] saved " + (++saves) + ": particles=" + particles
                         + " sounds=" + sounds + " mode=" + mode + " fallback=" + fallback + " range=" + range

@@ -98,10 +98,8 @@ final class PageView {
             // own screen opens instead. Kept as a line so a slip shows rather than vanishes.
             case Control.Unsupported u -> body.text(Component.literal(name.getString() + " (" + u.what() + ")"), TextRole.MUTED);
             // A list grows as rows are added; MenuKit's reflow pushes what's below down by its height.
-            case Control.ListOf<?> l -> {
-                body.text(name, TextRole.BODY, tip);
-                body.row((y, v) -> List.of(list(l, name, y)), Body.GAP);
-            }
+            // Its name is the title on its toolbar line, beside its buttons.
+            case Control.ListOf<?> l -> body.row((y, v) -> List.of(list(l, name, y)), Body.GAP);
             // The rest sit under their name.
             default -> {
                 body.text(name, TextRole.BODY, tip);
@@ -161,6 +159,7 @@ final class PageView {
         };
         return ListView.<Long>builder()
                 .items(items).key((Long id) -> id).at(0, y)
+                .title(name)
                 .row(id -> field(l.element().apply(element(list, ids, id, l.newElement().get())), name, 0))
                 .add(Component.literal("+ Add"), () -> {
                     List<T> now = new ArrayList<>(list.get());
@@ -168,10 +167,10 @@ final class PageView {
                     list.set(now);
                 })
                 .addDisabledWhen(() -> list.get().size() >= l.max())
-                // ponytail: at the minimum length the cross does nothing; a greyed cross needs a removeDisabledWhen from MenuKit.
+                .removeDisabledWhen(() -> list.get().size() <= l.min())
                 .remove(id -> {
                     int at = ids.indexOf(id);
-                    if (at < 0 || list.get().size() <= l.min()) return;
+                    if (at < 0) return;
                     List<T> now = new ArrayList<>(list.get());
                     now.remove(at);
                     ids.remove(at);
