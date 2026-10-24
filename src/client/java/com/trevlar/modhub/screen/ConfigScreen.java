@@ -7,8 +7,10 @@ import com.trevlar.menukit.api.element.Tabs;
 import com.trevlar.menukit.api.element.TextRole;
 import com.trevlar.menukit.api.panel.InsideRegion;
 import com.trevlar.menukit.api.panel.MKScreen;
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.panel.Placement;
 import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.panel.ScreenKind;
@@ -132,7 +134,7 @@ public final class ConfigScreen extends MKScreen {
         tabs.at(0, top);
         Panel.Builder panel = Panel.builder("modhub:config")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
-                .position(PanelPosition.main())
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.main()))
                 .add(NameBar.of(entry.name(), 0));
         return panel.add(tabs.build()).build();
     }
@@ -141,7 +143,7 @@ public final class ConfigScreen extends MKScreen {
     private static Panel back() {
         return Panel.builder("modhub:config_back")
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.screenAnchor(InsideRegion.TOP_LEFT))
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.screenAnchor(InsideRegion.TOP_LEFT)))
                 .add(Button.builder().label(Component.literal("< Back")).size(50, 20)
                         .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
                 .build();
@@ -154,7 +156,7 @@ public final class ConfigScreen extends MKScreen {
     private static Panel modHub(@Nullable Screen parent) {
         return Panel.builder("modhub:config_modhub")
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.screenAnchor(InsideRegion.TOP_RIGHT))
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.screenAnchor(InsideRegion.TOP_RIGHT)))
                 .add(Button.builder().icon(ModListScreen.MODS_SPRITE).size(20, 20)
                         .tooltip(Component.literal("Mod Hub"))
                         .onClick(() -> {
@@ -172,7 +174,7 @@ public final class ConfigScreen extends MKScreen {
     private static Panel done(History history) {
         Panel panel = Panel.builder("modhub:config_done")
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.region(OutsideRegion.BOTTOM_CENTER))
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.region(OutsideRegion.BOTTOM_CENTER)))
                 .add(Button.builder().at(0, 0).icon(UNDO_ICON).size(20, 20)
                         .tooltip(() -> stepTip("Undo", history.undoLabel()))
                         .disabledWhen(() -> !history.canUndo()).onClick(history::undo).build())

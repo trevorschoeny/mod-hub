@@ -2,7 +2,9 @@ package com.trevlar.modhub.screen;
 
 import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.panel.InsideRegion;
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.panel.Placement;
 import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.panel.ScreenPanelAdapter;
@@ -69,7 +71,7 @@ public final class ShortcutRow {
         flow.add(Flow.spacer());
         return Panel.builder(id)
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.screenAnchor(InsideRegion.TOP_CENTER))
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.screenAnchor(InsideRegion.TOP_CENTER)))
                 .add(flow.build())
                 .build()
                 .opaque(false);   // only the buttons claim the screen, not the strip they sit in

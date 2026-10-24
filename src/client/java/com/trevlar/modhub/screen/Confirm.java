@@ -4,7 +4,9 @@ import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.TextLabel;
 import com.trevlar.menukit.api.element.TextRole;
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.panel.Placement;
 import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
 
@@ -54,7 +56,7 @@ final class Confirm {
         return Panel.builder(id)
                 .elements(elements)
                 .style(PanelStyle.RAISED)
-                .position(PanelPosition.center())
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.center()))
                 .build()
                 .modal()
                 .onEscape(() -> pending = null)

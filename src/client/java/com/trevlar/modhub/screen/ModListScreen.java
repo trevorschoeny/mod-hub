@@ -12,8 +12,10 @@ import com.trevlar.menukit.api.element.TextRole;
 import com.trevlar.menukit.api.layout.CrossAlign;
 import com.trevlar.menukit.api.layout.Row;
 import com.trevlar.menukit.api.panel.MKScreen;
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.panel.Placement;
 import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.panel.ScreenKind;
@@ -131,7 +133,7 @@ public final class ModListScreen extends MKScreen {
         if (!options) tabs.at(0, NameBar.HEIGHT + NameBar.GAP);
         Panel.Builder panel = Panel.builder("modhub:list")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
-                .position(PanelPosition.main());
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.main()));
         if (!options) panel.add(NameBar.of("Mods"));
         return panel.add(tabs.build()).build();
     }
@@ -139,7 +141,7 @@ public final class ModListScreen extends MKScreen {
     private static Panel done() {
         return Panel.builder("modhub:list_done")
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.region(OutsideRegion.BOTTOM_CENTER))
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.region(OutsideRegion.BOTTOM_CENTER)))
                 .add(Button.builder().label(CommonComponents.GUI_DONE).size(200, 20)
                         .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
                 .build();
